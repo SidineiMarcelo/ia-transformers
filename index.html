@@ -3,49 +3,124 @@
 <head>
   <meta charset="UTF-8" />
   <title>IA Transformers - Laboratório Multiagente</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div class="app">
-    <header>
-      <h1>IA Transformers 🧠</h1>
-      <p>Laboratório de IA multiagente — converse, crie e teste novos perfis de agente.</p>
+
+    <header class="top-header">
+      <div>
+        <h1>IA Transformers 🧠</h1>
+        <p>Laboratório de IA multiagente holográfica — crie e teste Transformers de voz e texto.</p>
+      </div>
+      <div class="brand-pill">
+        <span class="dot"></span>
+        <span>Online</span>
+      </div>
     </header>
 
-    <section class="perfil">
-      <h2>Perfil atual do agente <span class="badge">transformer</span></h2>
-      <p class="hint">
-        Descreva aqui quem o agente deve ser.<br />
-        Exemplo: “Vendedor da empresa X, responde dúvidas de clientes, tom amigável e didático,
-        sempre pede mais contexto antes de responder.”
-      </p>
-      <textarea id="perfil" rows="4"
-        placeholder="Escreva aqui o perfil do agente (pode mudar a qualquer momento)..."></textarea>
-      <button id="aplicarPerfilBtn">Aplicar perfil</button>
-    </section>
+    <main class="layout">
 
-    <section class="chat">
-      <h2>Conversa com a IA</h2>
+      <!-- PAINEL ESQUERDO: HOLOGRAMA + TRANSFORMERS -->
+      <aside class="side-panel">
 
-      <div id="status" class="status">Pronto (aguardando sua mensagem)</div>
+        <section class="holo-card">
+          <div class="holo-orbit">
+            <div id="holo-head" class="holo-head">
+              <div class="holo-face">
+                <div class="holo-eyes">
+                  <div class="eye eye-left"></div>
+                  <div class="eye eye-right"></div>
+                </div>
+                <div class="holo-mouth"></div>
+              </div>
+              <div class="holo-scan"></div>
+            </div>
+          </div>
+          <div class="holo-info">
+            <h2 id="holo-nome">Transformer ativo</h2>
+            <p id="holo-descricao" class="holo-descricao">
+              Configure um novo Transformer à direita e salve para reutilizar depois.
+            </p>
+            <div class="holo-status-row">
+              <span class="status-dot"></span>
+              <span id="holo-status-text">Ocioso</span>
+            </div>
+          </div>
+        </section>
 
-      <div id="mensagens" class="mensagens"></div>
+        <section class="config-card">
+          <h3>Configurações do Transformer</h3>
 
-      <div class="entrada">
-        <textarea id="entradaTexto" rows="3"
-          placeholder="Digite sua mensagem aqui ou use o botão 🎤 Falar..."></textarea>
-        <div class="botoes">
-          <button id="falarBtn">🎤 Falar</button>
-          <button id="lerBtn">🔊 Ler resposta</button>
-          <button id="enviarBtn">📨 Enviar</button>
-        </div>
-        <p class="dica">
-          Dica: primeiro use o campo de perfil à esquerda para “configurar” o agente que você quer testar.
-        </p>
-      </div>
-    </section>
+          <label class="field-label" for="transformerNome">Nome do Transformer</label>
+          <input id="transformerNome" class="text-input" type="text"
+                 placeholder="Ex.: Vendedor Premium, Professor de IA..." />
+
+          <label class="field-label" for="vozSelect">Voz da IA</label>
+          <select id="vozSelect" class="select-input">
+            <option value="alloy">Alloy (neutra, clara)</option>
+            <option value="nova">Nova (feminina, moderna)</option>
+            <option value="onyx">Onyx (masculina, firme)</option>
+            <option value="shimmer">Shimmer (animada)</option>
+            <option value="sage">Sage (calma)</option>
+          </select>
+
+          <div class="config-buttons">
+            <button id="salvarTransformerBtn">💾 Salvar Transformer</button>
+            <button id="limparTransformerBtn" class="ghost-btn">🧹 Limpar perfil</button>
+          </div>
+        </section>
+
+        <section class="lista-card">
+          <div class="lista-header">
+            <h3>Transformers salvos</h3>
+            <button id="limparListaBtn" class="tiny-btn">Limpar lista</button>
+          </div>
+          <div id="listaTransformers" class="lista-transformers">
+            <p class="lista-vazia">Nenhum Transformer salvo ainda.</p>
+          </div>
+        </section>
+
+      </aside>
+
+      <!-- PAINEL DIREITO: PERFIL + CHAT -->
+      <section class="main-panel">
+
+        <section class="perfil-card">
+          <h2>Perfil do agente <span class="badge">Transformer</span></h2>
+          <p class="hint">
+            Descreva aqui como esse Transformer deve se comportar.<br />
+            Ex.: “Vendedor consultivo da empresa X, responde dúvidas de clientes, tom amigável,
+            sempre faz perguntas antes de sugerir um produto.”
+          </p>
+          <textarea id="perfil" rows="5"
+            placeholder="Escreva o perfil do agente aqui..."></textarea>
+          <button id="aplicarPerfilBtn">Aplicar perfil ao Transformer ativo</button>
+        </section>
+
+        <section class="chat-card">
+          <div id="status" class="status">Pronto (aguardando sua mensagem)</div>
+
+          <div id="mensagens" class="mensagens"></div>
+
+          <div class="entrada">
+            <textarea id="entradaTexto" rows="3"
+              placeholder="Digite sua mensagem aqui ou use o botão 🎤 Falar..."></textarea>
+            <div class="botoes">
+              <button id="falarBtn">🎤 Falar</button>
+              <button id="lerBtn">🔊 Ouvir resposta</button>
+              <button id="enviarBtn">📨 Enviar</button>
+            </div>
+            <p class="dica">
+              Dica: mude o perfil e o nome do Transformer à esquerda para criar “personas” diferentes.
+            </p>
+          </div>
+        </section>
+
+      </section>
+    </main>
   </div>
 
-  <script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>  
