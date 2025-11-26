@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>IA Transformers - Laboratório Multiagente</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>IA Transformers 🧠</h1>
+      <p>Laboratório de IA multiagente — converse, crie e teste novos perfis de agente.</p>
+    </header>
+
+    <section class="perfil">
+      <h2>Perfil atual do agente <span class="badge">transformer</span></h2>
+      <p class="hint">
+        Descreva aqui quem o agente deve ser.<br />
+        Exemplo: “Vendedor da empresa X, responde dúvidas de clientes, tom amigável e didático,
+        sempre pede mais contexto antes de responder.”
+      </p>
+      <textarea id="perfil" rows="4"
+        placeholder="Escreva aqui o perfil do agente (pode mudar a qualquer momento)..."></textarea>
+      <button id="aplicarPerfilBtn">Aplicar perfil</button>
+    </section>
+
+    <section class="chat">
+      <h2>Conversa com a IA</h2>
+
+      <div id="status" class="status">Pronto (aguardando sua mensagem)</div>
+
+      <div id="mensagens" class="mensagens"></div>
+
+      <div class="entrada">
+        <textarea id="entradaTexto" rows="3"
+          placeholder="Digite sua mensagem aqui ou use o botão 🎤 Falar..."></textarea>
+        <div class="botoes">
+          <button id="falarBtn">🎤 Falar</button>
+          <button id="lerBtn">🔊 Ler resposta</button>
+          <button id="enviarBtn">📨 Enviar</button>
+        </div>
+        <p class="dica">
+          Dica: primeiro use o campo de perfil à esquerda para “configurar” o agente que você quer testar.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>  
