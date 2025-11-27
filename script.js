@@ -3,16 +3,14 @@ let mensagens = [];
 let perfilAtual = "";
 let ultimaRespostaIA = "";
 let vozAtual = "alloy";
-
 let transformersSalvos = [];
 let transformerAtivoId = null;
 
 // Modo conversa (voz contínua)
 let recognition = null;
 let conversationActive = false;
-let isListening = false;          // se o microfone está ouvindo
-let isProcessingMessage = false;  // se a IA está gerando resposta
-let isSpeaking = false;           // se o áudio está tocando
+let isListening = false; // está ouvindo agora?
+let isSpeaking = false;  // está falando agora?
 
 // ===== ELEMENTOS DA INTERFACE =====
 const perfilTextarea = document.getElementById("perfil");
@@ -39,6 +37,7 @@ const limparListaBtn = document.getElementById("limparListaBtn");
 const listaTransformersDiv = document.getElementById("listaTransformers");
 
 // ===== UTILITÁRIOS =====
+
 function setStatus(texto) {
   statusDiv.textContent = texto;
 }
@@ -53,9 +52,7 @@ function setHoloSpeaking(flag) {
     setHoloStatus("Falando com você...");
   } else {
     holoHead.classList.remove("speaking");
-    setHoloStatus(
-      conversationActive ? "Modo conversa ativo" : "Ocioso"
-    );
+    setHoloStatus(conversationActive ? "Modo conversa ativo" : "Ocioso");
   }
 }
 
@@ -70,6 +67,7 @@ function adicionarMensagem(quem, texto) {
 }
 
 // ===== PERFIL DO AGENTE =====
+
 aplicarPerfilBtn.addEventListener("click", () => {
   const textoPerfil = perfilTextarea.value.trim();
   if (!textoPerfil) {
@@ -80,7 +78,6 @@ aplicarPerfilBtn.addEventListener("click", () => {
   mensagens = [];
   mensagensDiv.innerHTML = "";
   setStatus("Perfil aplicado. Pode começar a conversar!");
-
   if (transformerAtivoId === null && nomeInput.value.trim()) {
     holoDescricao.textContent =
       perfilAtual.slice(0, 160) + (perfilAtual.length > 160 ? "..." : "");
@@ -88,6 +85,7 @@ aplicarPerfilBtn.addEventListener("click", () => {
 });
 
 // ===== TRANSFORMERS SALVOS (LOCALSTORAGE) =====
+
 function carregarTransformersSalvos() {
   try {
     const raw = localStorage.getItem("ia_transformers_lista");
@@ -99,15 +97,11 @@ function carregarTransformersSalvos() {
 }
 
 function salvarListaTransformers() {
-  localStorage.setItem(
-    "ia_transformers_lista",
-    JSON.stringify(transformersSalvos)
-  );
+  localStorage.setItem("ia_transformers_lista", JSON.stringify(transformersSalvos));
 }
 
 function renderizarListaTransformers() {
   listaTransformersDiv.innerHTML = "";
-
   if (!transformersSalvos.length) {
     const p = document.createElement("p");
     p.className = "lista-vazia";
@@ -233,7 +227,7 @@ salvarTransformerBtn.addEventListener("click", async () => {
   holoDescricao.textContent =
     perfil.slice(0, 160) + (perfil.length > 160 ? "..." : "");
 
-  // 2) Salvar no Supabase (backend /api/transformers)
+  // 2) Salvar no Supabase (opcional, via API)
   try {
     const resp = await fetch("/api/transformers", {
       method: "POST",
@@ -248,13 +242,12 @@ salvarTransformerBtn.addEventListener("click", async () => {
 
     if (!resp.ok) {
       console.error("Erro ao salvar no Supabase:", data);
-      alert("Erro ao salvar no Supabase. Veja o console.");
+      // não travar a UI se der 404 ou erro
     } else {
       console.log("Transformer salvo no Supabase:", data);
     }
   } catch (err) {
     console.error("Erro de rede ao salvar transformer:", err);
-    alert("Erro ao conectar ao servidor para salvar o Transformer.");
   }
 
   setStatus("Transformer salvo e ativado.");
@@ -276,8 +269,7 @@ limparTransformerBtn.addEventListener("click", () => {
 
 limparListaBtn.addEventListener("click", () => {
   if (!transformersSalvos.length) return;
-  if (!confirm("Tem certeza que deseja apagar todos os Transformers salvos?"))
-    return;
+  if (!confirm("Tem certeza que deseja apagar todos os Transformers salvos?")) return;
   transformersSalvos = [];
   transformerAtivoId = null;
   salvarListaTransformers();
@@ -285,6 +277,7 @@ limparListaBtn.addEventListener("click", () => {
 });
 
 // ===== CHAT COM BACKEND (/api/chat) =====
+
 async function enviarMensagem() {
   const texto = entradaTexto.value.trim();
   if (!texto) return;
@@ -294,12 +287,7 @@ async function enviarMensagem() {
     return;
   }
 
-  if (isProcessingMessage) {
-    // evita mandar duas vezes a mesma pergunta
-    return;
-  }
-  isProcessingMessage = true;
-
+  // Atualiza UI
   adicionarMensagem("user", texto);
   entradaTexto.value = "";
   setStatus("Gerando resposta...");
@@ -330,9 +318,8 @@ async function enviarMensagem() {
     adicionarMensagem("ia", resposta);
 
     if (conversationActive) {
-      // Em modo conversa, já responde em voz automaticamente
       setStatus("Falando com você...");
-      await lerRespostaComOpenAI(true);
+      await lerRespostaComOpenAI(true); // autoLoop = true
     } else {
       setStatus("Pronto (aguardando sua mensagem)");
       setHoloStatus("À disposição.");
@@ -344,7 +331,6 @@ async function enviarMensagem() {
     alert("Ocorreu um erro ao chamar a IA. Verifique o console.");
   } finally {
     enviarBtn.disabled = false;
-    isProcessingMessage = false;
   }
 }
 
@@ -357,6 +343,7 @@ entradaTexto.addEventListener("keydown", (e) => {
 });
 
 // ===== RECONHECIMENTO DE VOZ (MODO CONVERSA) =====
+
 if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
@@ -371,17 +358,33 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 
   recognition.onend = () => {
     isListening = false;
-    // Quando o áudio terminar, quem decide se volta a ouvir é o TTS (lerRespostaComOpenAI)
+    // Aqui não reinicia automaticamente.
+    // Quem controla o loop é o áudio (TTS) ou o botão.
     if (!conversationActive && !isSpeaking) {
       setStatus("Pronto (aguardando sua mensagem)");
-      setHoloStatus("Ocioso");
     }
   };
 
   recognition.onerror = (event) => {
     console.error("Erro no reconhecimento de voz:", event.error);
     setStatus("Erro ao reconhecer voz.");
+
     if (conversationActive) {
+      // Erro comum quando não fala nada: tentamos ouvir de novo
+      if (event.error === "no-speech" || event.error === "aborted") {
+        setTimeout(() => {
+          if (conversationActive && !isListening && !isSpeaking) {
+            try {
+              recognition.start();
+            } catch (e) {
+              console.warn("Erro ao tentar reiniciar após no-speech:", e);
+            }
+          }
+        }, 800);
+        return;
+      }
+
+      // Outros erros mais sérios: desliga modo conversa
       conversationActive = false;
       falarBtn.textContent = "🎤 Falar (modo conversa)";
       setHoloStatus("Ocioso");
@@ -390,7 +393,14 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 
   recognition.onresult = (event) => {
     const texto = event.results[0][0].transcript;
+    if (!texto || !texto.trim()) return;
+
     entradaTexto.value = texto;
+
+    // Garante que vamos receber apenas UMA vez
+    try {
+      recognition.stop();
+    } catch (e) {}
 
     if (conversationActive && texto.trim()) {
       enviarMensagem();
@@ -406,19 +416,22 @@ falarBtn.textContent = "🎤 Falar (modo conversa)";
 falarBtn.addEventListener("click", () => {
   if (!recognition) return;
 
+  // Toggle do modo conversa
   if (!conversationActive) {
-    // Ativar modo conversa
     conversationActive = true;
     falarBtn.textContent = "🛑 Parar conversa";
     setStatus("Modo conversa: ouvindo você...");
     setHoloStatus("Modo conversa ativo");
-    try {
-      recognition.start();
-    } catch (e) {
-      console.warn("Erro ao iniciar reconhecimento:", e);
+
+    if (!isListening && !isSpeaking) {
+      try {
+        recognition.start();
+      } catch (e) {
+        console.error("Erro ao iniciar reconhecimento:", e);
+        setStatus("Erro ao iniciar reconhecimento de voz.");
+      }
     }
   } else {
-    // Desativar modo conversa
     conversationActive = false;
     falarBtn.textContent = "🎤 Falar (modo conversa)";
     setStatus("Modo conversa interrompido.");
@@ -430,6 +443,7 @@ falarBtn.addEventListener("click", () => {
 });
 
 // ===== TTS COM OPENAI (VOZ HUMANIZADA) =====
+
 async function lerRespostaComOpenAI(autoLoop = false) {
   if (!ultimaRespostaIA) {
     alert("Ainda não há resposta da IA para ler.");
@@ -437,8 +451,8 @@ async function lerRespostaComOpenAI(autoLoop = false) {
   }
 
   try {
-    setHoloSpeaking(true);
     isSpeaking = true;
+    setHoloSpeaking(true);
 
     const resp = await fetch("/api/tts", {
       method: "POST",
@@ -464,22 +478,23 @@ async function lerRespostaComOpenAI(autoLoop = false) {
       isSpeaking = false;
 
       if (conversationActive && recognition && autoLoop) {
-        // volta a ouvir automaticamente
+        // Depois que termina de falar, volta a ouvir automaticamente
         setStatus("Modo conversa: ouvindo você...");
         setHoloStatus("Modo conversa ativo");
 
-        setTimeout(() => {
-          if (!isListening) {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.warn("Erro ao reiniciar reconhecimento:", e);
+        if (!isListening) {
+          setTimeout(() => {
+            if (conversationActive && !isListening && !isSpeaking) {
+              try {
+                recognition.start();
+              } catch (e) {
+                console.warn("Erro ao reiniciar reconhecimento:", e);
+              }
             }
-          }
-        }, 500);
+          }, 600); // tempo para liberar o microfone
+        }
       } else {
         setStatus("Pronto (aguardando sua mensagem)");
-        setHoloStatus("À disposição.");
       }
     };
 
@@ -493,8 +508,8 @@ async function lerRespostaComOpenAI(autoLoop = false) {
   }
 }
 
+// Botão manual: só fala uma vez, sem loop
 lerBtn.addEventListener("click", () => {
-  // Botão manual: só fala uma vez, sem loop
   lerRespostaComOpenAI(false);
 });
 
@@ -504,6 +519,7 @@ vozSelect.addEventListener("change", () => {
 });
 
 // ===== INICIALIZAÇÃO =====
+
 carregarTransformersSalvos();
 setHoloStatus("Ocioso");
 setStatus("Pronto (aguardando sua mensagem)"); 
