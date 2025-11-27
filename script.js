@@ -193,7 +193,7 @@ function removerTransformer(id) {
   renderizarListaTransformers();
 }
 
-salvarTransformerBtn.addEventListener("click", () => {
+salvarTransformerBtn.addEventListener("click", async () => {
   const nome = nomeInput.value.trim();
   const perfil = perfilTextarea.value.trim();
 
@@ -209,24 +209,51 @@ salvarTransformerBtn.addEventListener("click", () => {
   perfilAtual = perfil;
   vozAtual = vozSelect.value;
 
-  const novo = {
+  // 1) Salvar no LocalStorage
+  const novoLocal = {
     id: Date.now(),
     nome,
     perfil,
     voz: vozAtual,
   };
 
-  transformersSalvos.push(novo);
+  transformersSalvos.push(novoLocal);
   salvarListaTransformers();
-  transformerAtivoId = novo.id;
+  transformerAtivoId = novoLocal.id;
 
   holoNome.textContent = nome;
   holoDescricao.textContent =
     perfil.slice(0, 160) + (perfil.length > 160 ? "..." : "");
 
+  // 2) Salvar no Supabase
+  try {
+    const resp = await fetch("/api/transformers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: nome,
+        profile: perfil,
+      }),
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      console.error("Erro ao salvar no Supabase:", data);
+      alert("Erro ao salvar no Supabase. Veja o console.");
+      return;
+    }
+
+    console.log("Transformer salvo no Supabase:", data);
+  } catch (err) {
+    console.error("Erro de rede ao salvar transformer:", err);
+    alert("Erro ao conectar ao servidor para salvar o Transformer.");
+  }
+
   setStatus("Transformer salvo e ativado.");
   renderizarListaTransformers();
 });
+
 
 limparTransformerBtn.addEventListener("click", () => {
   perfilTextarea.value = "";
