@@ -442,17 +442,28 @@ async function lerRespostaComOpenAI(autoLoop = false) {
     const audio = new Audio(url);
 
     audio.onended = () => {
-      URL.revokeObjectURL(url);
-      setHoloSpeaking(false);
-      if (conversationActive && recognition && autoLoop) {
-        // Volta a ouvir automaticamente
-        setStatus("Modo conversa: ouvindo você...");
-        setHoloStatus("Modo conversa ativo");
+  URL.revokeObjectURL(url);
+  setHoloSpeaking(false);
+
+  if (conversationActive && recognition && autoLoop) {
+
+    setStatus("Modo conversa: ouvindo você…");
+    setHoloStatus("Modo conversa ativo");
+
+    // Recomeça a escuta de forma segura (corrige celular + Chrome moderno)
+    setTimeout(() => {
+      try {
         recognition.start();
-      } else {
-        setStatus("Pronto (aguardando sua mensagem)");
+      } catch (e) {
+        console.warn("Erro ao reiniciar reconhecimento:", e);
       }
-    };
+    }, 500);
+
+  } else {
+    setStatus("Pronto (aguardando sua mensagem)"); 
+  }
+};
+
 
     audio.play();
   } catch (err) {
