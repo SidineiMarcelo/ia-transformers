@@ -9,6 +9,7 @@ let transformerAtivoId = null;
 // Modo conversa (voz contínua)
 let recognition = null;
 let conversationActive = false;
+let isListening = false;
 
 // ===== ELEMENTOS DA INTERFACE =====
 const perfilTextarea = document.getElementById("perfil");
@@ -59,7 +60,7 @@ function adicionarMensagem(quem, texto) {
   div.classList.add("msg", quem === "user" ? "usuario" : "ia");
 
   const titulo = quem === "user" ? "Você" : "IA";
-  div.innerHTML = `<strong>${titulo}</strong>${texto}`;
+  div.innerHTML = `<strong>${titulo}</strong> ${texto}`;
   mensagensDiv.appendChild(div);
   mensagensDiv.scrollTop = mensagensDiv.scrollHeight;
 }
@@ -254,7 +255,6 @@ salvarTransformerBtn.addEventListener("click", async () => {
   renderizarListaTransformers();
 });
 
-
 limparTransformerBtn.addEventListener("click", () => {
   perfilTextarea.value = "";
   perfilAtual = "";
@@ -354,11 +354,13 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   recognition.interimResults = false;
 
   recognition.onstart = () => {
+    isListening = true;
     setStatus("Ouvindo... fale agora.");
   };
 
   recognition.onend = () => {
-    // Se não estiver em modo conversa, só volta pro estado normal
+    isListening = false;
+    // Se não estiver em modo conversa, volta para o estado normal
     if (!conversationActive) {
       setStatus("Pronto (aguardando sua mensagem)");
     }
@@ -366,9 +368,10 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 
   recognition.onerror = (event) => {
     console.error("Erro no reconhecimento de voz:", event.error);
+    isListening = false;
     setStatus("Erro ao reconhecer voz.");
     if (conversationActive) {
-      // Em modo conversa, não trava tudo se der erro; só desliga
+      // Em modo conversa, se der erro, desliga para não travar tudo
       conversationActive = false;
       falarBtn.textContent = "🎤 Falar (modo conversa)";
       setHoloStatus("Ocioso");
@@ -400,7 +403,14 @@ falarBtn.addEventListener("click", () => {
     falarBtn.textContent = "🛑 Parar conversa";
     setStatus("Modo conversa: ouvindo você...");
     setHoloStatus("Modo conversa ativo");
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e) {
+      console.warn("Erro ao iniciar reconhecimento:", e);
+      conversationActive = false;
+      setStatus("Não foi possível iniciar o modo conversa.");
+      setHoloStatus("Ocioso");
+    }
   } else {
     conversationActive = false;
     falarBtn.textContent = "🎤 Falar (modo conversa)";
@@ -408,7 +418,9 @@ falarBtn.addEventListener("click", () => {
     setHoloStatus("Ocioso");
     try {
       recognition.stop();
-    } catch (e) {}
+    } catch (e) {
+      // ignore
+    }
   }
 });
 
@@ -442,28 +454,39 @@ async function lerRespostaComOpenAI(autoLoop = false) {
     const audio = new Audio(url);
 
     audio.onended = () => {
-  URL.revokeObjectURL(url);
-  setHoloSpeaking(false);
+      URL.revokeObjectURL(url);
+      setHoloSpeaking(false);
 
-  if (conversationActive && recognition && autoLoop) {
+      if (conversationActive && recognition && autoLoop) {
+        // Volta a ouvir automaticamente
+        setStatus("Modo conversa: ouvindo você...");
+        setHoloStatus("Modo conversa ativo");
 
-    setStatus("Modo conversa: ouvindo você…");
-    setHoloStatus("Modo conversa ativo");
+        // Espera um pouco e reinicia o reconhecimento de forma segura
+        setTimeout(() => {
+          if (!conversationActive || !recognition) return;
 
-    // Recomeça a escuta de forma segura (corrige celular + Chrome moderno)
-    setTimeout(() => {
-      try {
-        recognition.start();
-      } catch (e) {
-        console.warn("Erro ao reiniciar reconhecimento:", e);
+          // Se por algum motivo ainda estiver "ouvindo", tenta parar antes de reiniciar
+          if (isListening) {
+            try {
+              recognition.stop();
+            } catch (e) {
+              // ignorar
+            }
+          }
+
+          try {
+            recognition.start();
+          } catch (e) {
+            console.warn("Erro ao reiniciar reconhecimento:", e);
+            setStatus("Não foi possível continuar o modo conversa.");
+            setHoloStatus("Ocioso");
+          }
+        }, 500);
+      } else {
+        setStatus("Pronto (aguardando sua mensagem)");
       }
-    }, 500);
-
-  } else {
-    setStatus("Pronto (aguardando sua mensagem)"); 
-  }
-};
-
+    };
 
     audio.play();
   } catch (err) {
@@ -487,4 +510,5 @@ vozSelect.addEventListener("change", () => {
 // ===== INICIALIZAÇÃO =====
 
 carregarTransformersSalvos();
-setHoloStatus("Ocioso");   
+setHoloStatus("Ocioso");
+setStatus("Pronto (aguardando sua mensagem)");  
