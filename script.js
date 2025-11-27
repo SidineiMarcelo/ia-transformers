@@ -10,6 +10,7 @@ let transformerAtivoId = null;
 let recognition = null;
 let conversationActive = false;
 let isListening = false;
+let isSpeaking = false;
 
 // ===== ELEMENTOS DA INTERFACE =====
 const perfilTextarea = document.getElementById("perfil");
@@ -38,14 +39,15 @@ const listaTransformersDiv = document.getElementById("listaTransformers");
 // ===== UTILITÁRIOS =====
 
 function setStatus(texto) {
-  statusDiv.textContent = texto;
+  if (statusDiv) statusDiv.textContent = texto;
 }
 
 function setHoloStatus(texto) {
-  holoStatusText.textContent = texto;
+  if (holoStatusText) holoStatusText.textContent = texto;
 }
 
 function setHoloSpeaking(flag) {
+  if (!holoHead) return;
   if (flag) {
     holoHead.classList.add("speaking");
     setHoloStatus("Falando com você...");
@@ -56,6 +58,7 @@ function setHoloSpeaking(flag) {
 }
 
 function adicionarMensagem(quem, texto) {
+  if (!mensagensDiv) return;
   const div = document.createElement("div");
   div.classList.add("msg", quem === "user" ? "usuario" : "ia");
 
@@ -65,23 +68,53 @@ function adicionarMensagem(quem, texto) {
   mensagensDiv.scrollTop = mensagensDiv.scrollHeight;
 }
 
+// ===== LIMPEZA DE TEXTO PARA VOZ (SEM EMOJI, SEM MARKDOWN) =====
+
+function cleanTextForSpeech(text) {
+  if (!text) return "";
+
+  let cleaned = String(text);
+
+  // Remove marcações de markdown simples
+  cleaned = cleaned.replace(/[*_`>#]/g, " ");
+
+  // Remove shortcodes de emoji tipo :smile:
+  cleaned = cleaned.replace(/:[^:\s]{1,30}:/g, " ");
+
+  // Remove a maioria dos emojis gráficos (faixa Unicode comum)
+  cleaned = cleaned.replace(
+    /[\u{1F300}-\u{1FAFF}\u{2600}-\u{26FF}]/gu,
+    ""
+  );
+
+  // Compacta espaços
+  cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
+
+  return cleaned;
+}
+
 // ===== PERFIL DO AGENTE =====
 
-aplicarPerfilBtn.addEventListener("click", () => {
-  const textoPerfil = perfilTextarea.value.trim();
-  if (!textoPerfil) {
-    alert("Escreva o perfil do agente antes de aplicar.");
-    return;
-  }
-  perfilAtual = textoPerfil;
-  mensagens = [];
-  mensagensDiv.innerHTML = "";
-  setStatus("Perfil aplicado. Pode começar a conversar!");
-  if (transformerAtivoId === null && nomeInput.value.trim()) {
-    holoDescricao.textContent =
-      perfilAtual.slice(0, 160) + (perfilAtual.length > 160 ? "..." : "");
-  }
-});
+if (aplicarPerfilBtn) {
+  aplicarPerfilBtn.addEventListener("click", () => {
+    const textoPerfil = perfilTextarea.value.trim();
+    if (!textoPerfil) {
+      alert("Escreva o perfil do agente antes de aplicar.");
+      return;
+    }
+    perfilAtual = textoPerfil;
+    mensagens = [];
+    if (mensagensDiv) mensagensDiv.innerHTML = "";
+    setStatus("Perfil aplicado. Pode começar a conversar!");
+    if (transformerAtivoId === null && nomeInput.value.trim()) {
+      if (holoDescricao) {
+        holoDescricao.textContent =
+          perfilAtual.slice(0, 160) +
+          (perfilAtual.length > 160 ? "..." : "");
+      }
+    }
+  });
+}
 
 // ===== TRANSFORMERS SALVOS (LOCALSTORAGE) =====
 
@@ -96,10 +129,15 @@ function carregarTransformersSalvos() {
 }
 
 function salvarListaTransformers() {
-  localStorage.setItem("ia_transformers_lista", JSON.stringify(transformersSalvos));
+  localStorage.setItem(
+    "ia_transformers_lista",
+    JSON.stringify(transformersSalvos)
+  );
 }
 
 function renderizarListaTransformers() {
+  if (!listaTransformersDiv) return;
+
   listaTransformersDiv.innerHTML = "";
   if (!transformersSalvos.length) {
     const p = document.createElement("p");
@@ -125,9 +163,10 @@ function renderizarListaTransformers() {
 
     const sub = document.createElement("span");
     sub.className = "transformer-sub";
-    sub.textContent = `Voz: ${t.voz} · Perfil: ${t.perfil.slice(0, 40)}${
-      t.perfil.length > 40 ? "..." : ""
-    }`;
+    sub.textContent = `Voz: ${t.voz} · Perfil: ${t.perfil.slice(
+      0,
+      40
+    )}${t.perfil.length > 40 ? "..." : ""}`;
 
     meta.appendChild(n);
     meta.appendChild(sub);
@@ -166,17 +205,19 @@ function ativarTransformer(id) {
   if (!t) return;
 
   transformerAtivoId = t.id;
-  nomeInput.value = t.nome || "";
-  perfilTextarea.value = t.perfil || "";
+  if (nomeInput) nomeInput.value = t.nome || "";
+  if (perfilTextarea) perfilTextarea.value = t.perfil || "";
   perfilAtual = t.perfil || "";
   vozAtual = t.voz || "alloy";
-  vozSelect.value = vozAtual;
+  if (vozSelect) vozSelect.value = vozAtual;
 
-  holoNome.textContent = t.nome || "Transformer ativo";
-  holoDescricao.textContent =
-    t.perfil.slice(0, 160) + (t.perfil.length > 160 ? "..." : "");
+  if (holoNome) holoNome.textContent = t.nome || "Transformer ativo";
+  if (holoDescricao) {
+    holoDescricao.textContent =
+      t.perfil.slice(0, 160) + (t.perfil.length > 160 ? "..." : "");
+  }
   mensagens = [];
-  mensagensDiv.innerHTML = "";
+  if (mensagensDiv) mensagensDiv.innerHTML = "";
 
   setStatus("Transformer carregado. Pode começar a conversar.");
   renderizarListaTransformers();
@@ -186,96 +227,108 @@ function removerTransformer(id) {
   transformersSalvos = transformersSalvos.filter((x) => x.id !== id);
   if (transformerAtivoId === id) {
     transformerAtivoId = null;
-    holoNome.textContent = "Transformer ativo";
-    holoDescricao.textContent =
-      "Configure um novo Transformer à direita e salve para reutilizar depois.";
+    if (holoNome) holoNome.textContent = "Transformer ativo";
+    if (holoDescricao) {
+      holoDescricao.textContent =
+        "Configure um novo Transformer à direita e salve para reutilizar depois.";
+    }
   }
   salvarListaTransformers();
   renderizarListaTransformers();
 }
 
-salvarTransformerBtn.addEventListener("click", async () => {
-  const nome = nomeInput.value.trim();
-  const perfil = perfilTextarea.value.trim();
+if (salvarTransformerBtn) {
+  salvarTransformerBtn.addEventListener("click", async () => {
+    const nome = nomeInput.value.trim();
+    const perfil = perfilTextarea.value.trim();
 
-  if (!nome) {
-    alert("Dê um nome para o Transformer antes de salvar.");
-    return;
-  }
-  if (!perfil) {
-    alert("Defina um perfil para o Transformer antes de salvar.");
-    return;
-  }
-
-  perfilAtual = perfil;
-  vozAtual = vozSelect.value;
-
-  // 1) Salvar no LocalStorage
-  const novoLocal = {
-    id: Date.now(),
-    nome,
-    perfil,
-    voz: vozAtual,
-  };
-
-  transformersSalvos.push(novoLocal);
-  salvarListaTransformers();
-  transformerAtivoId = novoLocal.id;
-
-  holoNome.textContent = nome;
-  holoDescricao.textContent =
-    perfil.slice(0, 160) + (perfil.length > 160 ? "..." : "");
-
-  // 2) Salvar no Supabase
-  try {
-    const resp = await fetch("/api/transformers", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: nome,
-        profile: perfil,
-      }),
-    });
-
-    const data = await resp.json();
-
-    if (!resp.ok) {
-      console.error("Erro ao salvar no Supabase:", data);
-      alert("Erro ao salvar no Supabase. Veja o console.");
+    if (!nome) {
+      alert("Dê um nome para o Transformer antes de salvar.");
+      return;
+    }
+    if (!perfil) {
+      alert("Defina um perfil para o Transformer antes de salvar.");
       return;
     }
 
-    console.log("Transformer salvo no Supabase:", data);
-  } catch (err) {
-    console.error("Erro de rede ao salvar transformer:", err);
-    alert("Erro ao conectar ao servidor para salvar o Transformer.");
-  }
+    perfilAtual = perfil;
+    vozAtual = vozSelect.value;
 
-  setStatus("Transformer salvo e ativado.");
-  renderizarListaTransformers();
-});
+    // 1) Salvar no LocalStorage
+    const novoLocal = {
+      id: Date.now(),
+      nome,
+      perfil,
+      voz: vozAtual,
+    };
 
-limparTransformerBtn.addEventListener("click", () => {
-  perfilTextarea.value = "";
-  perfilAtual = "";
-  nomeInput.value = "";
-  transformerAtivoId = null;
-  holoNome.textContent = "Transformer ativo";
-  holoDescricao.textContent =
-    "Configure um novo Transformer à direita e salve para reutilizar depois.";
-  mensagens = [];
-  mensagensDiv.innerHTML = "";
-  setStatus("Perfil limpo. Defina um novo Transformer.");
-});
+    transformersSalvos.push(novoLocal);
+    salvarListaTransformers();
+    transformerAtivoId = novoLocal.id;
 
-limparListaBtn.addEventListener("click", () => {
-  if (!transformersSalvos.length) return;
-  if (!confirm("Tem certeza que deseja apagar todos os Transformers salvos?")) return;
-  transformersSalvos = [];
-  transformerAtivoId = null;
-  salvarListaTransformers();
-  renderizarListaTransformers();
-});
+    if (holoNome) holoNome.textContent = nome;
+    if (holoDescricao) {
+      holoDescricao.textContent =
+        perfil.slice(0, 160) + (perfil.length > 160 ? "..." : "");
+    }
+
+    // 2) Salvar no Supabase via API
+    try {
+      const resp = await fetch("/api/transformers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nome,
+          profile: perfil,
+        }),
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        console.error("Erro ao salvar no Supabase:", data);
+        alert("Erro ao salvar no Supabase. Veja o console.");
+      } else {
+        console.log("Transformer salvo no Supabase:", data);
+      }
+    } catch (err) {
+      console.error("Erro de rede ao salvar transformer:", err);
+      alert("Erro ao conectar ao servidor para salvar o Transformer.");
+    }
+
+    setStatus("Transformer salvo e ativado.");
+    renderizarListaTransformers();
+  });
+}
+
+if (limparTransformerBtn) {
+  limparTransformerBtn.addEventListener("click", () => {
+    if (perfilTextarea) perfilTextarea.value = "";
+    perfilAtual = "";
+    if (nomeInput) nomeInput.value = "";
+    transformerAtivoId = null;
+    if (holoNome) holoNome.textContent = "Transformer ativo";
+    if (holoDescricao) {
+      holoDescricao.textContent =
+        "Configure um novo Transformer à direita e salve para reutilizar depois.";
+    }
+    mensagens = [];
+    if (mensagensDiv) mensagensDiv.innerHTML = "";
+    setStatus("Perfil limpo. Defina um novo Transformer.");
+  });
+}
+
+if (limparListaBtn) {
+  limparListaBtn.addEventListener("click", () => {
+    if (!transformersSalvos.length) return;
+    if (!confirm("Tem certeza que deseja apagar todos os Transformers salvos?"))
+      return;
+    transformersSalvos = [];
+    transformerAtivoId = null;
+    salvarListaTransformers();
+    renderizarListaTransformers();
+  });
+}
 
 // ===== CHAT COM BACKEND (/api/chat) =====
 
@@ -319,7 +372,6 @@ async function enviarMensagem() {
     adicionarMensagem("ia", resposta);
 
     if (conversationActive) {
-      // Em modo conversa, já responde em voz automaticamente
       setStatus("Falando com você...");
       await lerRespostaComOpenAI(true);
     } else {
@@ -336,15 +388,32 @@ async function enviarMensagem() {
   }
 }
 
-enviarBtn.addEventListener("click", enviarMensagem);
-entradaTexto.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    enviarMensagem();
-  }
-});
+if (enviarBtn) {
+  enviarBtn.addEventListener("click", enviarMensagem);
+}
+
+if (entradaTexto) {
+  entradaTexto.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      enviarMensagem();
+    }
+  });
+}
 
 // ===== RECONHECIMENTO DE VOZ (MODO CONVERSA) =====
+
+function startListeningSafely() {
+  if (!recognition || isListening || isSpeaking) return;
+  try {
+    recognition.start();
+    isListening = true;
+    setStatus("Modo conversa: ouvindo você...");
+    setHoloStatus("Modo conversa ativo");
+  } catch (e) {
+    console.warn("Falha ao iniciar reconhecimento de voz:", e);
+  }
+}
 
 if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -360,8 +429,12 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 
   recognition.onend = () => {
     isListening = false;
-    // Se não estiver em modo conversa, volta para o estado normal
-    if (!conversationActive) {
+    // Se estiver em modo conversa e não estiver falando, volta a ouvir
+    if (conversationActive && !isSpeaking) {
+      setTimeout(() => {
+        startListeningSafely();
+      }, 500);
+    } else if (!conversationActive) {
       setStatus("Pronto (aguardando sua mensagem)");
     }
   };
@@ -371,9 +444,9 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
     isListening = false;
     setStatus("Erro ao reconhecer voz.");
     if (conversationActive) {
-      // Em modo conversa, se der erro, desliga para não travar tudo
+      // Não derruba tudo, só desliga o modo conversa
       conversationActive = false;
-      falarBtn.textContent = "🎤 Falar (modo conversa)";
+      if (falarBtn) falarBtn.textContent = "🎤 Falar (modo conversa)";
       setHoloStatus("Ocioso");
     }
   };
@@ -382,47 +455,40 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
     const texto = event.results[0][0].transcript;
     entradaTexto.value = texto;
 
-    // Em modo conversa, já envia automaticamente
     if (conversationActive && texto.trim()) {
       enviarMensagem();
     }
   };
 } else {
-  falarBtn.disabled = true;
-  falarBtn.textContent = "🎤 Falar (não suportado neste navegador)";
+  if (falarBtn) {
+    falarBtn.disabled = true;
+    falarBtn.textContent = "🎤 Falar (não suportado neste navegador)";
+  }
 }
 
-falarBtn.textContent = "🎤 Falar (modo conversa)";
+if (falarBtn) {
+  falarBtn.textContent = "🎤 Falar (modo conversa)";
 
-falarBtn.addEventListener("click", () => {
-  if (!recognition) return;
+  falarBtn.addEventListener("click", () => {
+    if (!recognition) return;
 
-  // Toggle do modo conversa
-  if (!conversationActive) {
-    conversationActive = true;
-    falarBtn.textContent = "🛑 Parar conversa";
-    setStatus("Modo conversa: ouvindo você...");
-    setHoloStatus("Modo conversa ativo");
-    try {
-      recognition.start();
-    } catch (e) {
-      console.warn("Erro ao iniciar reconhecimento:", e);
+    if (!conversationActive) {
+      // Liga modo conversa
+      conversationActive = true;
+      falarBtn.textContent = "🛑 Parar conversa";
+      startListeningSafely();
+    } else {
+      // Desliga modo conversa
       conversationActive = false;
-      setStatus("Não foi possível iniciar o modo conversa.");
+      falarBtn.textContent = "🎤 Falar (modo conversa)";
+      setStatus("Modo conversa interrompido.");
       setHoloStatus("Ocioso");
+      try {
+        recognition.stop();
+      } catch (e) {}
     }
-  } else {
-    conversationActive = false;
-    falarBtn.textContent = "🎤 Falar (modo conversa)";
-    setStatus("Modo conversa interrompido.");
-    setHoloStatus("Ocioso");
-    try {
-      recognition.stop();
-    } catch (e) {
-      // ignore
-    }
-  }
-});
+  });
+}
 
 // ===== TTS COM OPENAI (VOZ HUMANIZADA) =====
 
@@ -432,14 +498,29 @@ async function lerRespostaComOpenAI(autoLoop = false) {
     return;
   }
 
+  const textoParaFalar = cleanTextForSpeech(ultimaRespostaIA);
+  if (!textoParaFalar) {
+    console.warn("Texto para TTS ficou vazio depois da limpeza.");
+    return;
+  }
+
   try {
     setHoloSpeaking(true);
+    isSpeaking = true;
+
+    // Enquanto fala, garante que não esteja ouvindo
+    if (recognition && isListening) {
+      try {
+        recognition.stop();
+      } catch (e) {}
+      isListening = false;
+    }
 
     const resp = await fetch("/api/tts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text: ultimaRespostaIA,
+        text: textoParaFalar,
         voice: vozAtual || "alloy",
       }),
     });
@@ -456,32 +537,12 @@ async function lerRespostaComOpenAI(autoLoop = false) {
     audio.onended = () => {
       URL.revokeObjectURL(url);
       setHoloSpeaking(false);
+      isSpeaking = false;
 
-      if (conversationActive && recognition && autoLoop) {
-        // Volta a ouvir automaticamente
-        setStatus("Modo conversa: ouvindo você...");
-        setHoloStatus("Modo conversa ativo");
-
-        // Espera um pouco e reinicia o reconhecimento de forma segura
+      if (conversationActive && autoLoop) {
+        // Quando terminar de falar, volta a ouvir
         setTimeout(() => {
-          if (!conversationActive || !recognition) return;
-
-          // Se por algum motivo ainda estiver "ouvindo", tenta parar antes de reiniciar
-          if (isListening) {
-            try {
-              recognition.stop();
-            } catch (e) {
-              // ignorar
-            }
-          }
-
-          try {
-            recognition.start();
-          } catch (e) {
-            console.warn("Erro ao reiniciar reconhecimento:", e);
-            setStatus("Não foi possível continuar o modo conversa.");
-            setHoloStatus("Ocioso");
-          }
+          startListeningSafely();
         }, 500);
       } else {
         setStatus("Pronto (aguardando sua mensagem)");
@@ -491,21 +552,26 @@ async function lerRespostaComOpenAI(autoLoop = false) {
     audio.play();
   } catch (err) {
     console.error(err);
+    isSpeaking = false;
     setHoloSpeaking(false);
     setStatus("Erro ao gerar áudio.");
     alert("Ocorreu um erro ao gerar o áudio da IA.");
   }
 }
 
-lerBtn.addEventListener("click", () => {
-  // Botão manual: só fala uma vez, sem loop
-  lerRespostaComOpenAI(false);
-});
+if (lerBtn) {
+  lerBtn.addEventListener("click", () => {
+    // Botão manual: só fala uma vez, sem loop
+    lerRespostaComOpenAI(false);
+  });
+}
 
 // Atualiza voz quando usuário escolhe
-vozSelect.addEventListener("change", () => {
-  vozAtual = vozSelect.value;
-});
+if (vozSelect) {
+  vozSelect.addEventListener("change", () => {
+    vozAtual = vozSelect.value;
+  });
+}
 
 // ===== INICIALIZAÇÃO =====
 
