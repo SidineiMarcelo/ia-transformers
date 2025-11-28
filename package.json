@@ -1,0 +1,17 @@
+{
+  "name": "ia-transformers-rag",
+  "version": "1.0.0",
+  "description": "IA com RAG usando Supabase e OpenAI",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "openai": "^4.28.0",
+    "dotenv": "^16.4.5",
+    "@supabase/supabase-js": "^2.39.0",
+    "pdf-parse": "^1.1.1",
+    "mammoth": "^1.7.1",
+    "busboy": "^1.6.0"
+  }
+}

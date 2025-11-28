@@ -24,7 +24,7 @@ body {
   background: radial-gradient(circle at top center, #1a237e, #000000 80%);
   background-attachment: fixed;
   color: #e0e6ed;
-  /* MUDANÇA CRUCIAL: Altura fixa na tela (Desktop) para evitar scroll da página toda */
+  /* Altura fixa na tela (Desktop) para evitar scroll da página toda */
   height: 100vh;
   overflow: hidden; 
 }
@@ -45,7 +45,7 @@ body {
   margin-bottom: 16px;
   text-transform: uppercase;
   position: relative;
-  flex-shrink: 0; /* Garante que o cabeçalho nunca encolha demais */
+  flex-shrink: 0;
 }
 
 .app-header h1 {
@@ -70,9 +70,8 @@ body {
   display: flex;
   gap: 16px;
   align-items: stretch;
-  /* MUDANÇA CRUCIAL: Permite que o layout ocupe o espaço restante e gerencie scroll interno */
   flex: 1; 
-  min-height: 0; /* Essencial para o flexbox permitir scroll nos filhos */
+  min-height: 0;
 }
 
 /* Painéis Base (Glassmorphism) */
@@ -84,10 +83,9 @@ body {
   border: 1px solid rgba(0, 242, 255, 0.15);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
   
-  /* Configuração Flex Vertical para organizar conteúdo interno */
   display: flex;
   flex-direction: column;
-  height: 100%; /* Força a coluna a respeitar a altura da tela */
+  height: 100%;
   transition: border-color 0.3s ease;
 }
 
@@ -105,7 +103,7 @@ body {
   flex: 1;
   gap: 12px;
   min-width: 0;
-  overflow: hidden; /* Garante que nada vaze da coluna central */
+  overflow: hidden;
 }
 
 .col-right {
@@ -136,7 +134,7 @@ h2 {
   align-items: center;
   position: relative;
   overflow: hidden; 
-  flex-shrink: 0; /* Impede que o card da IA encolha quando o chat cresce */
+  flex-shrink: 0;
 }
 
 /* Efeito de Scanline */
@@ -152,7 +150,7 @@ h2 {
 
 /* Contêiner da Cabeça */
 .holo-head {
-  width: 80px; /* Otimizado para telas menores */
+  width: 80px;
   height: 80px;
   border-radius: 50%;
   position: relative;
@@ -229,7 +227,7 @@ h2 {
   font-size: 0.75rem;
 }
 
-/* ===== MENSAGENS E CHAT (CORREÇÃO DE SCROLL) ===== */
+/* ===== MENSAGENS E CHAT ===== */
 .status-bar {
   font-family: 'Courier New', monospace;
   font-size: 0.75rem;
@@ -242,12 +240,10 @@ h2 {
 }
 
 .mensagens {
-  /* O PULO DO GATO: flex: 1 faz ela ocupar todo espaço sobrando */
   flex: 1;
-  /* Removemos altura fixa/max-height para usar o espaço flexível */
   height: auto; 
-  min-height: 0; /* Permite encolher se necessário */
-  overflow-y: auto; /* Scroll apenas aqui dentro! */
+  min-height: 0;
+  overflow-y: auto;
   
   padding: 12px;
   background: rgba(0, 0, 0, 0.3);
@@ -256,7 +252,7 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px; /* Espaço antes do input */
+  margin-bottom: 12px;
 }
 
 .msg {
@@ -298,7 +294,6 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  /* Garante que o input fique fixo e não encolha */
   flex-shrink: 0; 
   margin-top: auto;
 }
@@ -336,14 +331,13 @@ select:focus {
 }
 
 .campo-textarea {
-  flex: 1; /* Ocupa espaço disponível no painel direito */
+  flex: 1;
   min-height: 80px;
-  resize: none; /* Desativa resize manual para manter layout limpo */
+  resize: none;
 }
 
-/* Configuração Específica do Input de Chat */
 #entradaTexto {
-  height: 60px; /* Altura fixa para o input de chat */
+  height: 60px;
   resize: none;
 }
 
@@ -413,7 +407,7 @@ select:focus {
 /* Lista de Transformers */
 .lista-transformers {
   flex: 1;
-  overflow-y: auto; /* Scroll apenas na lista */
+  overflow-y: auto;
   padding-right: 4px;
   min-height: 0;
 }
@@ -454,37 +448,109 @@ select:focus {
   cursor: pointer;
 }
 
+/* ===== NOVO: ESTILOS DO MÓDULO RAG ===== */
+.rag-container {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0, 242, 255, 0.05);
+  border: 1px dashed rgba(0, 242, 255, 0.3);
+  border-radius: 8px;
+}
+
+.rag-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #00f2ff;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Input de Arquivo customizado */
+input[type="file"]::file-selector-button {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 242, 255, 0.5);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  font-size: 0.7rem;
+  transition: all 0.2s;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background: rgba(2, 242, 255, 0.2);
+}
+
+.rag-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  cursor: pointer;
+}
+
+/* Checkbox Futurista */
+.rag-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #00f2ff;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+
+.rag-checkbox:checked {
+  background: #00f2ff;
+  box-shadow: 0 0 10px #00f2ff;
+}
+
+.rag-checkbox-label {
+  font-size: 0.8rem;
+  color: #e0e6ed;
+  cursor: pointer;
+}
+
+.upload-status {
+  font-size: 0.7rem;
+  margin-top: 6px;
+  min-height: 1rem;
+}
+.upload-status.success { color: #00ff88; }
+.upload-status.error { color: #ff5252; }
+.upload-status.loading { color: #ffeb3b; }
+
 /* ===== ANIMAÇÕES ===== */
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes spin-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
 @keyframes pulse-idle { 0%, 100% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } }
 @keyframes pulse-speaking { 0%, 100% { transform: scale(0.9); } 50% { transform: scale(1.1); } }
 
-/* ===== RESPONSIVIDADE AVANÇADA ===== */
+/* ===== RESPONSIVIDADE ===== */
 
-/* NOTEBOOKS (Telas com altura limitada) */
 @media (max-height: 800px) {
   .app-header { margin-bottom: 10px; }
   .app-header h1 { font-size: 1.4rem; }
   .app-subtitle { display: none; }
 }
 
-/* TABLETS (Modo Retrato) */
 @media (max-width: 1024px) {
   .col-left { flex: 0 0 200px; }
   .col-right { flex: 0 0 220px; }
 }
 
-/* MOBILE e TELAS PEQUENAS (Volta a comportamento de Scroll Normal) */
 @media (max-width: 900px) {
   body {
     height: auto;
-    overflow-y: auto; /* Permite scroll da página no mobile */
+    overflow-y: auto;
   }
   
   .app {
     height: auto;
-    display: block; /* Remove o comportamento de altura fixa */
+    display: block;
   }
 
   .layout {
@@ -493,14 +559,13 @@ select:focus {
   }
 
   .col {
-    height: auto; /* Colunas crescem conforme conteúdo */
+    height: auto;
     width: 100%;
     margin-bottom: 16px;
   }
 
   .col-center { order: -1; }
 
-  /* Limita altura das áreas de scroll no mobile para não ficar infinito */
   .mensagens {
     max-height: 400px; 
     min-height: 250px;
@@ -510,12 +575,11 @@ select:focus {
     max-height: 200px;
   }
   
-  /* Ajuste no teclado mobile */
   .entrada-container {
     position: sticky;
     bottom: 0;
     z-index: 10;
-    background: #0b1026; /* Fundo sólido para cobrir conteúdo */
+    background: #0b1026;
     padding-top: 10px;
     padding-bottom: 10px;
     border-top: 1px solid rgba(0, 242, 255, 0.2); 
