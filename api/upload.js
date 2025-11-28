@@ -7,18 +7,21 @@ import Busboy from 'busboy';
 // Configuração (Pega das variáveis de ambiente da Vercel)
 const supabaseUrl = process.env.SUPABASE_URL;
 // IMPORTANTE: Aqui precisamos da chave Service Role para ter permissão de escrita sem travas
+// Se não tiver a Service Role, tenta usar a Key normal, mas pode dar erro de permissão (RLS)
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY; 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Desativa o bodyParser padrão da Vercel para podermos ler o arquivo (stream)
 export const config = {
   api: {
-    bodyParser: false, // Necessário para upload de arquivos na Vercel (Busboy faz o trabalho)
+    bodyParser: false, 
   },
 };
 
 export default async function handler(req, res) {
+  // Apenas aceita método POST
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -49,7 +52,7 @@ export default async function handler(req, res) {
     try {
       let textContent = '';
 
-      // 2. Extrair texto baseado no tipo
+      // 2. Extrair texto baseado no tipo de arquivo
       if (fileType === 'application/pdf') {
         const data = await pdf(fileBuffer);
         textContent = data.text;
@@ -62,33 +65,35 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Formato não suportado. Use PDF ou DOCX.' });
       }
 
-      // Limpar texto (remove excesso de espaços)
+      // Limpar texto (remove excesso de espaços e quebras de linha estranhas)
       textContent = textContent.replace(/\s+/g, ' ').trim();
       
       if (textContent.length < 50) {
-         return res.status(400).json({ error: 'O arquivo parece vazio ou tem pouco texto.' });
+         return res.status(400).json({ error: 'O arquivo parece vazio ou tem muito pouco texto legível.' });
       }
 
       // 3. Dividir texto em pedaços (Chunks) de ~1000 caracteres
+      // Isso é necessário porque a IA não consegue ler um livro inteiro de uma vez
       const chunkSize = 1000;
       const chunks = [];
       for (let i = 0; i < textContent.length; i += chunkSize) {
         chunks.push(textContent.slice(i, i + chunkSize));
       }
 
-      // 4. Gerar Vetores e Salvar no Supabase
-      // Opcional: Se quiser limpar a memória anterior ao carregar novo doc, descomente a linha abaixo:
+      // 4. Gerar Vetores (Embeddings) e Salvar no Supabase
+      // Nota: Este código adiciona aos documentos existentes. 
+      // Se quiser limpar a base antes, descomente a linha abaixo:
       // await supabase.from('documents').delete().neq('id', 0); 
 
       for (const chunk of chunks) {
-        // Gerar Embedding (Vetor) na OpenAI
+        // Gerar Embedding (Vetor numérico) na OpenAI
         const embeddingResponse = await openai.embeddings.create({
           model: 'text-embedding-3-small',
           input: chunk,
         });
         const embedding = embeddingResponse.data[0].embedding;
 
-        // Salvar no Supabase
+        // Salvar no Banco de Dados
         const { error } = await supabase.from('documents').insert({
           content: chunk,
           metadata: { fileName },
@@ -98,7 +103,7 @@ export default async function handler(req, res) {
         if (error) throw error;
       }
 
-      return res.status(200).json({ success: true, message: 'Arquivo processado e memória criada!' });
+      return res.status(200).json({ success: true, message: 'Arquivo processado e memória criada com sucesso!' });
 
     } catch (error) {
       console.error('Erro no processamento:', error);
@@ -106,5 +111,5 @@ export default async function handler(req, res) {
     }
   });
 
-  req.pipe(busboy); 
+  req.pipe(busboy);  
 }

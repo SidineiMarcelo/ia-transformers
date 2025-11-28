@@ -45,6 +45,8 @@ const arquivoInput = document.getElementById("arquivoInput");
 const btnUpload = document.getElementById("btnUpload");
 const uploadStatus = document.getElementById("uploadStatus");
 const checkRag = document.getElementById("checkRag");
+// NOVO: Caixa de texto onde aparece o nome do arquivo
+const fileNameDisplay = document.getElementById("fileNameDisplay");
 
 // ===== UTILITÁRIOS =====
 function setStatus(texto) {
@@ -108,6 +110,19 @@ if (aplicarPerfilBtn) {
 }
 
 // ===== MÓDULO RAG (UPLOAD) =====
+
+// ATUALIZAÇÃO: Quando escolher um arquivo, mostra o nome na caixa customizada
+if (arquivoInput) {
+  arquivoInput.addEventListener('change', () => {
+    if (arquivoInput.files.length > 0) {
+      // Atualiza o texto da caixa .file-name-box
+      if(fileNameDisplay) fileNameDisplay.textContent = arquivoInput.files[0].name;
+    } else {
+      if(fileNameDisplay) fileNameDisplay.textContent = "Nenhum arquivo selecionado";
+    }
+  });
+}
+
 if (btnUpload) {
   btnUpload.addEventListener("click", async () => {
     const arquivo = arquivoInput.files[0];
@@ -128,16 +143,14 @@ if (btnUpload) {
     formData.append("file", arquivo);
 
     try {
-      // Chama o backend para processar o arquivo (será criado na Fase 3)
       const resp = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
 
-      // Verifica se a resposta é JSON antes de tentar ler
       const contentType = resp.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
-         throw new Error("Servidor não retornou JSON. Verifique se a rota /api/upload existe.");
+         throw new Error("Servidor não retornou JSON.");
       }
 
       const data = await resp.json();
@@ -148,7 +161,7 @@ if (btnUpload) {
           uploadStatus.textContent = "✅ Documento aprendido com sucesso!";
           uploadStatus.className = "upload-status success";
       }
-      // Auto-marca a caixa de usar RAG
+      // Marca a caixinha automaticamente após sucesso
       if(checkRag) checkRag.checked = true; 
 
     } catch (err) {
@@ -368,7 +381,6 @@ async function enviarMensagem() {
   entradaTexto.value = "";
   setStatus("Gerando resposta...");
   
-  // Atualiza status do holograma dependendo se está usando RAG ou não
   const usarRag = checkRag ? checkRag.checked : false;
   setHoloStatus(usarRag ? "Consultando documentos..." : "Pensando...");
   
@@ -383,7 +395,7 @@ async function enviarMensagem() {
       body: JSON.stringify({
         profile: perfilAtual,
         messages: mensagens,
-        useRag: usarRag // <--- Envia para o backend se deve usar RAG
+        useRag: usarRag 
       }),
     });
 
@@ -460,7 +472,7 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
     }
     
     if (conversationActive && !isProcessingMessage && !isSpeaking) {
-         // Lógica de reconexão se cair sem querer
+         // Lógica de reconexão
     }
   };
 
@@ -639,4 +651,4 @@ if(vozSelect) {
 carregarTransformersSalvos();  
 setHoloStatus("Ocioso");
 setStatus("Pronto (aguardando sua mensagem)");
-console.log("✅ IA Transformers iniciada - RAG Habilitado"); 
+console.log("✅ IA Transformers iniciada - RAG com Nome de Arquivo"); 

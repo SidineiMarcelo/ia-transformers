@@ -3,10 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>IA Transformers</title>
-
-    <!-- ESSENCIAL PARA CELULAR FICAR RESPONSIVO -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -19,18 +16,16 @@
       </header>
 
       <main class="layout">
-        <!-- LADO ESQUERDO: lista de Transformers -->
+        <!-- LADO ESQUERDO -->
         <aside class="col col-left">
           <h2>Transformers salvos</h2>
-
           <div id="listaTransformers" class="lista-transformers"></div>
-
           <button id="limparListaBtn" class="btn secundario full">
             Limpar lista
           </button>
         </aside>
 
-        <!-- CENTRO: holograma + chat -->
+        <!-- CENTRO -->
         <section class="col col-center">
           <div class="holo-card">
             <div id="holo-head" class="holo-head">
@@ -56,27 +51,22 @@
             
             <div class="botoes-chat">
               <button id="enviarBtn" class="btn primario">Enviar</button>
-              
               <button id="iniciarConversaBtn" class="btn secundario">
                 🎤 Iniciar Conversa
               </button>
-              
               <button id="pararConversaBtn" class="btn perigo" disabled>
                 🛑 Parar
               </button>
-
               <button id="lerBtn" class="btn secundario">
                 🔊 Ouvir resposta
               </button>
             </div>
-            
           </div>
         </section>
 
-        <!-- DIREITA: configuração do Transformer -->
+        <!-- DIREITA -->
         <aside class="col col-right">
           <h2>Configurações</h2>
-
           <label class="campo-label" for="transformerNome">Nome</label>
           <input
             id="transformerNome"
@@ -105,12 +95,17 @@
             </button>
           </div>
 
-          <!-- NOVO BLOCO: MÓDULO RAG -->
+          <!-- MÓDULO RAG (ATUALIZADO COM SCROLL DE NOME) -->
           <div class="rag-container">
             <span class="rag-label">📂 Base de Conhecimento (RAG)</span>
             
-            <!-- Aceita PDF e DOCX -->
-            <input type="file" id="arquivoInput" accept=".pdf,.docx" class="campo-input" />
+            <!-- Estrutura nova: Botão + Caixa de Nome com Scroll -->
+            <div class="custom-file-upload">
+              <label for="arquivoInput" class="btn secundario small">📁 Escolher</label>
+              <!-- Esta caixa mostrará o nome e terá barra de rolagem -->
+              <div id="fileNameDisplay" class="file-name-box">Nenhum arquivo selecionado</div>
+              <input type="file" id="arquivoInput" accept=".pdf,.docx" style="display: none;" />
+            </div>
             
             <button id="btnUpload" class="btn primario full" style="margin-top: 8px;">
               Carregar Documento
@@ -119,10 +114,9 @@
 
             <label class="rag-toggle">
               <input type="checkbox" id="checkRag" class="rag-checkbox" />
-              <span class="rag-checkbox-label">Usar <strong>apenas</strong> este documento</span>
+              <span class="rag-checkbox-label">Consultar Base de Conhecimento</span>
             </label>
           </div>
-          <!-- FIM DO NOVO BLOCO -->
 
           <div class="botoes-transformer">
             <button id="salvarTransformerBtn" class="btn primario full">
@@ -136,6 +130,6 @@
       </main>
     </div>
 
-    <script src="script.js"></script> 
+    <script src="script.js"></script>
   </body>
-</html>
+</html>  
