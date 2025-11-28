@@ -42,14 +42,14 @@ body {
 /* ===== CABEÇALHO ===== */
 .app-header {
   text-align: center;
-  margin-bottom: 12px; /* Reduzi a margem para ganhar espaço */
+  margin-bottom: 12px;
   text-transform: uppercase;
   position: relative;
   flex-shrink: 0;
 }
 
 .app-header h1 {
-  font-size: 1.6rem; /* Fonte levemente menor */
+  font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: 0.15em;
   color: #fff;
@@ -98,7 +98,6 @@ body {
 .col-left {
   flex: 0 0 260px;
   gap: 12px;
-  /* Se a lista for grande, rola aqui dentro */
   overflow-y: auto; 
 }
 
@@ -109,14 +108,13 @@ body {
   overflow: hidden;
 }
 
-/* --- AQUI ESTÁ A CORREÇÃO DO SEU PROBLEMA --- */
 .col-right {
   flex: 0 0 280px;
   gap: 10px;
-  /* ADICIONADO: Permite rolar SÓ essa coluna se os botões sumirem */
+  /* Rolagem vertical para ver botões escondidos */
   overflow-y: auto; 
   min-height: 0;
-  padding-bottom: 20px; /* Espaço extra no final para o botão não colar na borda */
+  padding-bottom: 20px;
 }
 
 /* Títulos dos Painéis */
@@ -157,7 +155,7 @@ h2 {
 
 /* Cabeça Holográfica */
 .holo-head {
-  width: 70px; /* Levemente menor para otimizar espaço */
+  width: 70px;
   height: 70px;
   border-radius: 50%;
   position: relative;
@@ -312,7 +310,7 @@ select,
   background: rgba(5, 7, 20, 0.8);
   border: 1px solid rgba(88, 130, 255, 0.3);
   color: #fff;
-  padding: 8px; /* Padding menor */
+  padding: 8px; 
   border-radius: 4px;
   font-family: inherit;
   font-size: 0.85rem;
@@ -330,7 +328,7 @@ select:focus {
 }
 
 .campo-textarea {
-  min-height: 70px; /* Altura menor */
+  min-height: 70px;
   resize: vertical;
 }
 
@@ -446,10 +444,10 @@ select:focus {
   cursor: pointer;
 }
 
-/* ===== ESTILOS RAG (Mais Compacto) ===== */
+/* ===== ESTILOS RAG (Compacto e Rolável) ===== */
 .rag-container {
-  margin-top: 8px; /* Menos margem */
-  padding: 10px; /* Menos padding */
+  margin-top: 8px;
+  padding: 10px;
   background: rgba(0, 242, 255, 0.05);
   border: 1px dashed rgba(0, 242, 255, 0.3);
   border-radius: 8px;
@@ -476,6 +474,15 @@ input[type="file"]::file-selector-button {
   transition: all 0.2s;
 }
 
+/* AJUSTE DO INPUT DE ARQUIVO */
+#arquivoInput {
+  font-size: 0.75rem; /* Fonte menor */
+  overflow-x: auto;   /* Permite rolagem lateral */
+  white-space: nowrap; /* Não quebra linha, força rolagem se precisar */
+  padding-bottom: 8px; /* Espaço para a barra de rolagem */
+  display: block; /* Garante que o overflow funcione */
+}
+
 .rag-toggle {
   display: flex;
   align-items: center;
@@ -492,6 +499,7 @@ input[type="file"]::file-selector-button {
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
+  flex-shrink: 0; /* Impede o checkbox de amassar */
 }
 
 .rag-checkbox:checked {
@@ -508,6 +516,8 @@ input[type="file"]::file-selector-button {
   font-size: 0.7rem;
   margin-top: 4px;
   min-height: 1rem;
+  /* Se a mensagem de erro for grande, rola também */
+  overflow-wrap: break-word; 
 }
 .upload-status.success { color: #00ff88; }
 .upload-status.error { color: #ff5252; }
@@ -575,6 +585,6 @@ input[type="file"]::file-selector-button {
     background: #0b1026;
     padding-top: 10px;
     padding-bottom: 10px;
-    border-top: 1px solid rgba(0, 242, 255, 0.2);  
+    border-top: 1px solid rgba(0, 242, 255, 0.2); 
   }
 }
