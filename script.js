@@ -1,6 +1,3 @@
-// ===== CÓDIGO CORRIGIDO - NÃO DUPLICA A VOZ =====
-// Este é o SEU código original com correção que FUNCIONA
-
 // ===== ESTADO GLOBAL =====
 let mensagens = [];
 let perfilAtual = "";
@@ -10,15 +7,13 @@ let vozAtual = "alloy";
 let transformersSalvos = [];
 let transformerAtivoId = null;
 
-// Modo conversa (voz contínua)
 let recognition = null;
 let conversationActive = false;
 let isListening = false;
 let isProcessingMessage = false;
 let isSpeaking = false;
-
-// NOVO: Controle para evitar duplicação
-let jaEnviouMensagem = false;
+let timeoutSilencio = null;
+let transcricaoCompleta = "";
 
 // ===== ELEMENTOS DA INTERFACE =====
 const perfilTextarea = document.getElementById("perfil");
@@ -31,7 +26,6 @@ const enviarBtn = document.getElementById("enviarBtn");
 const falarBtn = document.getElementById("falarBtn");
 const lerBtn = document.getElementById("lerBtn");
 
-// Holograma + configs
 const holoHead = document.getElementById("holo-head");
 const holoNome = document.getElementById("holo-nome");
 const holoDescricao = document.getElementById("holo-descricao");
@@ -363,14 +357,14 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
   
-  // ✅ CONFIGURAÇÃO CORRETA QUE NÃO DUPLICA
-  recognition.lang = "en-US";  // Para reconhecer inglês
-  recognition.continuous = true;  // Permite pausas
-  recognition.interimResults = false;  // ← CHAVE: false evita duplicação!
+  recognition.lang = "en-US";
+  recognition.continuous = true;
+  recognition.interimResults = false;
 
   recognition.onstart = () => {
     isListening = true;
-    jaEnviouMensagem = false;  // Reset ao iniciar
+    transcricaoCompleta = "";
+    clearTimeout(timeoutSilencio);
     setStatus("Ouvindo... (pode fazer pausas para pensar)");
     console.log("🎤 Reconhecimento iniciado");
   };
@@ -388,7 +382,6 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   recognition.onerror = (event) => {
     console.error("Erro no reconhecimento de voz:", event.error);
     setStatus("Erro ao reconhecer voz.");
-    jaEnviouMensagem = false;
     
     if (conversationActive) {
       conversationActive = false;
@@ -398,27 +391,33 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   };
 
   recognition.onresult = (event) => {
-    // ✅ SOLUÇÃO: Só processar resultado FINAL
-    const ultimoResultado = event.results[event.results.length - 1];
-    
-    // Se não for final, ignora
-    if (!ultimoResultado.isFinal) {
-      return;
+    let textoAtual = "";
+    for (let i = 0; i < event.results.length; i++) {
+      textoAtual += event.results[i][0].transcript + " ";
     }
     
-    const texto = ultimoResultado[0].transcript;
-    console.log("✅ Texto reconhecido:", texto);
+    textoAtual = textoAtual.trim();
+    transcricaoCompleta = textoAtual;
+    entradaTexto.value = textoAtual;
     
-    entradaTexto.value = texto;
-
-    // ✅ PROTEÇÃO CONTRA DUPLICAÇÃO
-    if (conversationActive && texto.trim() && !jaEnviouMensagem) {
-      jaEnviouMensagem = true;
-      
-      // Pequeno delay antes de enviar
-      setTimeout(() => {
-        enviarMensagem();
-      }, 100);
+    console.log("🎤 Capturando:", textoAtual);
+    
+    clearTimeout(timeoutSilencio);
+    
+    if (conversationActive && textoAtual.trim()) {
+      timeoutSilencio = setTimeout(() => {
+        console.log("✅ Enviando frase completa:", textoAtual);
+        
+        try {
+          recognition.stop();
+        } catch (e) {}
+        
+        setTimeout(() => {
+          if (entradaTexto.value.trim()) {
+            enviarMensagem();
+          }
+        }, 200);
+      }, 2500);
     }
   };
 } else {
@@ -432,9 +431,9 @@ falarBtn.addEventListener("click", () => {
   if (!recognition) return;
 
   if (!conversationActive) {
-    // Ativar modo conversa
     conversationActive = true;
-    jaEnviouMensagem = false;
+    transcricaoCompleta = "";
+    clearTimeout(timeoutSilencio);
     falarBtn.textContent = "🛑 Parar conversa";
     setStatus("Modo conversa: ouvindo você...");
     setHoloStatus("Modo conversa ativo");
@@ -445,9 +444,8 @@ falarBtn.addEventListener("click", () => {
       console.warn("Erro ao iniciar reconhecimento:", e);
     }
   } else {
-    // Desativar modo conversa
     conversationActive = false;
-    jaEnviouMensagem = false;
+    clearTimeout(timeoutSilencio);
     falarBtn.textContent = "🎤 Falar (modo conversa)";
     setStatus("Modo conversa interrompido.");
     setHoloStatus("Ocioso");
@@ -492,20 +490,20 @@ async function lerRespostaComOpenAI(autoLoop = false) {
       setHoloSpeaking(false);
       isSpeaking = false;
 
-      if (conversationActive && recognition && autoLoop) {
+      if (conversationActive && recognition && autoLoop && !isProcessingMessage) {
         setStatus("Modo conversa: ouvindo você...");
         setHoloStatus("Modo conversa ativo");
-        jaEnviouMensagem = false;  // Reset para próxima rodada
 
         setTimeout(() => {
-          if (!isListening) {
+          if (!isListening && conversationActive) {
             try {
               recognition.start();
+              console.log("🔄 Reconhecimento reiniciado");
             } catch (e) {
               console.warn("Erro ao reiniciar reconhecimento:", e);
             }
           }
-        }, 1000);  // 1 segundo de pausa entre rodadas
+        }, 1500);
       } else {
         setStatus("Pronto (aguardando sua mensagem)");
         setHoloStatus("À disposição.");
@@ -526,12 +524,12 @@ lerBtn.addEventListener("click", () => {
   lerRespostaComOpenAI(false);
 });
 
-vozSelect.addEventListener("change", () => {  
+vozSelect.addEventListener("change", () => {
   vozAtual = vozSelect.value;
 });
 
 // ===== INICIALIZAÇÃO =====
-carregarTransformersSalvos();
+carregarTransformersSalvos(); 
 setHoloStatus("Ocioso");
 setStatus("Pronto (aguardando sua mensagem)");
-console.log("✅ IA Transformers iniciada - Versão SEM DUPLICAÇÃO");
+console.log("✅ IA Transformers iniciada - Versão CORRIGIDA"); 
