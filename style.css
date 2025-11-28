@@ -73,6 +73,501 @@ body {
   gap: 8px;
 }
 
+/* ===== HOLOGRAMA (DESIGN MODERNO) ===== */
+.holo-card {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 14px;
+  background: radial-gradient(circle at top, #2734a2, #090c2d);
+  border: 1px solid rgba(151, 196, 255, 0.6);
+  /* Centraliza no mobile/desktop de forma fluida */
+  align-items: center;
+}
+
+/* O Contêiner da Cabeça (Anel Externo) */
+.holo-head {
+  width: 110px; /* Um pouco maior para caber os efeitos */
+  height: 110px;
+  border-radius: 50%;
+  position: relative; /* Necessário para os anéis giratórios */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at center, #1a1a2e, #000);
+  
+  /* Sombra externa para profundidade */
+  box-shadow: 
+    0 10px 20px rgba(0, 0, 0, 0.5),
+    inset 0 0 15px rgba(0, 242, 255, 0.1);
+    
+  transition: all 0.3s ease;
+  flex-shrink: 0; /* Garante que não amasse em telas pequenas */
+}
+
+/* Anel Giratório Externo (Pseudo-elemento) */
+.holo-head::before {
+  content: '';
+  position: absolute;
+  top: -5px; left: -5px; right: -5px; bottom: -5px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: rgba(0, 242, 255, 0.5); /* Ciano */
+  border-right-color: rgba(140, 0, 255, 0.3); /* Roxo */
+  animation: spin 6s linear infinite;
+  z-index: 1;
+}
+
+/* Anel Giratório Interno (Sentido oposto) */
+.holo-head::after {
+  content: '';
+  position: absolute;
+  top: 5px; left: 5px; right: 5px; bottom: 5px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  border-bottom-color: rgba(0, 242, 255, 0.8);
+  animation: spin-reverse 10s linear infinite;
+  z-index: 1;
+}
+
+/* O Núcleo de Energia (Antiga Face) */
+.holo-face {
+  width: 60%;
+  height: 60%;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00f2ff, #0066ff, #8c00ff);
+  background-size: 200% 200%;
+  position: relative;
+  z-index: 2;
+  
+  /* O BRILHO NEON */
+  box-shadow: 
+    0 0 15px #00f2ff,
+    0 0 30px rgba(0, 102, 255, 0.6);
+    
+  animation: pulse-idle 4s ease-in-out infinite;
+}
+
+/* Removemos os olhos antigos (dots) para ficar abstrato */
+.holo-face::before,
+.holo-face::after {
+  display: none;
+}
+
+/* ===== ESTADO: FALANDO (.speaking) ===== */
+.holo-head.speaking .holo-face {
+  animation: pulse-speaking 1.2s ease-in-out infinite;
+  box-shadow: 
+    0 0 25px #00f2ff,
+    0 0 50px #0066ff,
+    0 0 80px rgba(140, 0, 255, 0.8);
+}
+
+.holo-head.speaking::before {
+  border-top-color: #00f2ff;
+  animation-duration: 2s; /* Gira mais rápido */
+}
+
+/* ===== ANIMAÇÕES ===== */
+@keyframes pulse-idle {
+  0%, 100% { transform: scale(0.95); opacity: 0.85; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+@keyframes pulse-speaking {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  25% { transform: scale(1.15); opacity: 1; }
+  50% { transform: scale(0.95); opacity: 0.9; }
+  75% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.holo-info {
+  flex: 1;
+}
+
+.holo-info h2 {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.holo-info p {
+  font-size: 0.8rem;
+  color: #c6d4ff;
+}
+
+.holo-status {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #98ffb5;
+}
+
+/* ===== STATUS BAR ===== */
+.status-bar {
+  font-size: 0.85rem;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(23, 34, 76, 0.9);
+  border: 1px solid rgba(115, 151, 255, 0.6);
+}
+
+/* ===== MENSAGENS ===== */
+.mensagens {
+  flex: 1 1 auto;
+  min-height: 150px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(6, 9, 30, 0.95);
+  border: 1px solid rgba(66, 106, 255, 0.6);
+}
+
+.msg {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.msg strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 0.8rem;
+}
+
+.msg.usuario {
+  background: rgba(76, 175, 80, 0.12);
+  border-left: 3px solid #76ff83;
+}
+
+.msg.ia {
+  background: rgba(63, 81, 181, 0.16);
+  border-left: 3px solid #8ab4ff;
+}
+
+/* ===== ENTRADA DE TEXTO ===== */
+.entrada-container {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#entradaTexto {
+  width: 100%;
+  min-height: 60px;
+  max-height: 110px;
+  resize: vertical;
+  border-radius: 8px;
+  border: 1px solid rgba(88, 130, 255, 0.7);
+  background: rgba(6, 9, 25, 0.96);
+  color: #f5f5f5;
+  padding: 8px;
+  font-size: 0.9rem;
+}
+
+.botoes-chat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ===== LISTA DE TRANSFORMERS ===== */
+.col-left h2,
+.col-right h2 {
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.lista-transformers {
+  flex: 1 1 auto;
+  border-radius: 10px;
+  background: rgba(5, 8, 30, 0.95);
+  border: 1px solid rgba(88, 130, 255, 0.6);
+  padding: 6px;
+  overflow-y: auto;
+  max-height: 340px;
+}
+
+.lista-vazia {
+  font-size: 0.85rem;
+  color: #9ea8ff;
+  text-align: center;
+  padding: 10px;
+}
+
+.transformer-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  background: rgba(11, 18, 55, 0.9);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.transformer-item:hover {
+  background: rgba(23, 39, 96, 1);
+  transform: translateY(-1px);
+}
+
+.transformer-item.active {
+  border: 1px solid #76ff83;
+  box-shadow: 0 0 12px rgba(118, 255, 131, 0.5);
+}
+
+.transformer-meta {
+  flex: 1 1 auto;
+}
+
+.transformer-name {
+  display: block;
+  font-weight: bold;
+  font-size: 0.88rem;
+}
+
+.transformer-sub {
+  font-size: 0.75rem;
+  color: #aab3ff;
+}
+
+.transformer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ===== CAMPOS E BOTÕES ===== */
+.campo-label {
+  font-size: 0.8rem;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  display: block;
+}
+
+.campo-input,
+.campo-textarea,
+select {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid rgba(88, 130, 255, 0.8);
+  background: rgba(6, 9, 25, 0.96);
+  color: #f5f5f5;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+
+.campo-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease,
+    box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn.full {
+  width: 100%;
+  text-align: center;
+}
+
+.btn.primario {
+  background: linear-gradient(135deg, #4c8dff, #7b5bff);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(106, 142, 255, 0.8);
+}
+
+.btn.primario:hover {
+  box-shadow: 0 0 18px rgba(106, 142, 255, 1);
+  transform: translateY(-1px);
+}
+
+.btn.secundario {
+  background: rgba(19, 30, 80, 0.9);
+  color: #d0d6ff;
+  border: 1px solid rgba(108, 139, 255, 0.9);
+}
+
+.btn.secundario:hover {
+  background: rgba(30, 47, 115, 1);
+}
+
+.btn.perigo {
+  background: rgba(180, 45, 65, 0.9);
+  color: #ffe9ea;
+  border: 1px solid rgba(255, 138, 157, 0.9);
+}
+
+.btn.perigo:hover {
+  background: rgba(210, 64, 86, 1);
+}
+
+/* ===== RESPONSIVIDADE ===== */
+
+/* Tablets: apertar um pouco as colunas */
+@media (max-width: 1024px) {
+  .app {
+    max-width: 100%;
+    padding: 12px;
+  }
+
+  .col-left {
+    flex: 0 0 230px;
+  }
+
+  .col-right {
+    flex: 0 0 250px;
+  }
+
+  .holo-card {
+    flex-direction: row;
+  }
+}
+
+/* Celular: empilhar colunas em coluna única */
+@media (max-width: 900px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .col-left,
+  .col-center,
+  .col-right {
+    flex: 1 1 auto;
+  }
+
+  .lista-transformers {
+    max-height: 220px;
+  }
+
+  .mensagens {
+    max-height: 220px;
+  }
+
+  .holo-card {
+    flex-direction: row;
+  }
+}
+
+/* Celular pequeno */
+@media (max-width: 600px) {
+  .app {
+    padding: 8px;
+  }
+
+  .app-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .holo-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .botoes-chat {
+    flex-direction: column;
+  }
+
+  .transformer-actions {
+    flex-direction: row;   
+  }
+} ===== RESET BÁSICO ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #1f2966, #050714);
+  color: #f5f5f5;
+  min-height: 100vh;
+}
+
+/* ===== APP ===== */
+.app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ===== CABEÇALHO ===== */
+.app-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.app-header h1 {
+  font-size: 1.8rem;
+  letter-spacing: 0.05em;
+}
+
+.app-subtitle {
+  font-size: 0.9rem;
+  color: #a9b4ff;
+  margin-top: 4px;
+}
+
+/* ===== LAYOUT PRINCIPAL ===== */
+.layout {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* Colunas base (desktop) */
+.col {
+  background: rgba(7, 12, 40, 0.9);
+  border-radius: 16px;
+  padding: 12px;
+  border: 1px solid rgba(88, 130, 255, 0.4);
+  box-shadow: 0 0 20px rgba(88, 130, 255, 0.2);
+}
+
+.col-left {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.col-center {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.col-right {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* ===== HOLOGRAMA ===== */
 .holo-card {
   display: flex;
