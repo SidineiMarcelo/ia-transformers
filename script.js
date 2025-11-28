@@ -1,6 +1,5 @@
-// ===== CÓDIGO ORIGINAL COM APENAS 3 MUDANÇAS MÍNIMAS =====
-// Este é o SEU código original, apenas com as 3 linhas alteradas
-// TODOS os botões continuam funcionando normalmente!
+// ===== CÓDIGO CORRIGIDO - NÃO DUPLICA A VOZ =====
+// Este é o SEU código original com correção que FUNCIONA
 
 // ===== ESTADO GLOBAL =====
 let mensagens = [];
@@ -17,6 +16,9 @@ let conversationActive = false;
 let isListening = false;
 let isProcessingMessage = false;
 let isSpeaking = false;
+
+// NOVO: Controle para evitar duplicação
+let jaEnviouMensagem = false;
 
 // ===== ELEMENTOS DA INTERFACE =====
 const perfilTextarea = document.getElementById("perfil");
@@ -356,28 +358,27 @@ entradaTexto.addEventListener("keydown", (e) => {
   }
 });
 
-// ===== RECONHECIMENTO DE VOZ (MODO CONVERSA) =====
-// ✅ APENAS 3 MUDANÇAS AQUI! O resto é IGUAL ao original
+// ===== RECONHECIMENTO DE VOZ - VERSÃO CORRIGIDA (NÃO DUPLICA) =====
 if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
   
-  // ✅ MUDANÇA 1: Mude para inglês se quiser reconhecer inglês
-  recognition.lang = "en-US";  // ← MUDADO de "pt-BR" para "en-US"
-  
-  // ✅ MUDANÇA 2: Permite pausas
-  recognition.continuous = true;  // ← MUDADO de false para true
-  
-  // ✅ MUDANÇA 3: Mostra texto em tempo real
-  recognition.interimResults = true;  // ← MUDADO de false para true
+  // ✅ CONFIGURAÇÃO CORRETA QUE NÃO DUPLICA
+  recognition.lang = "en-US";  // Para reconhecer inglês
+  recognition.continuous = true;  // Permite pausas
+  recognition.interimResults = false;  // ← CHAVE: false evita duplicação!
 
   recognition.onstart = () => {
     isListening = true;
-    setStatus("Ouvindo... fale agora.");
+    jaEnviouMensagem = false;  // Reset ao iniciar
+    setStatus("Ouvindo... (pode fazer pausas para pensar)");
+    console.log("🎤 Reconhecimento iniciado");
   };
 
   recognition.onend = () => {
     isListening = false;
+    console.log("🎤 Reconhecimento finalizado");
+    
     if (!conversationActive && !isSpeaking) {
       setStatus("Pronto (aguardando sua mensagem)");
       setHoloStatus("Ocioso");
@@ -387,6 +388,8 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   recognition.onerror = (event) => {
     console.error("Erro no reconhecimento de voz:", event.error);
     setStatus("Erro ao reconhecer voz.");
+    jaEnviouMensagem = false;
+    
     if (conversationActive) {
       conversationActive = false;
       falarBtn.textContent = "🎤 Falar (modo conversa)";
@@ -395,11 +398,27 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   };
 
   recognition.onresult = (event) => {
-    const texto = event.results[0][0].transcript;
+    // ✅ SOLUÇÃO: Só processar resultado FINAL
+    const ultimoResultado = event.results[event.results.length - 1];
+    
+    // Se não for final, ignora
+    if (!ultimoResultado.isFinal) {
+      return;
+    }
+    
+    const texto = ultimoResultado[0].transcript;
+    console.log("✅ Texto reconhecido:", texto);
+    
     entradaTexto.value = texto;
 
-    if (conversationActive && texto.trim()) {
-      enviarMensagem();
+    // ✅ PROTEÇÃO CONTRA DUPLICAÇÃO
+    if (conversationActive && texto.trim() && !jaEnviouMensagem) {
+      jaEnviouMensagem = true;
+      
+      // Pequeno delay antes de enviar
+      setTimeout(() => {
+        enviarMensagem();
+      }, 100);
     }
   };
 } else {
@@ -413,20 +432,26 @@ falarBtn.addEventListener("click", () => {
   if (!recognition) return;
 
   if (!conversationActive) {
+    // Ativar modo conversa
     conversationActive = true;
+    jaEnviouMensagem = false;
     falarBtn.textContent = "🛑 Parar conversa";
     setStatus("Modo conversa: ouvindo você...");
     setHoloStatus("Modo conversa ativo");
+    
     try {
       recognition.start();
     } catch (e) {
       console.warn("Erro ao iniciar reconhecimento:", e);
     }
   } else {
+    // Desativar modo conversa
     conversationActive = false;
+    jaEnviouMensagem = false;
     falarBtn.textContent = "🎤 Falar (modo conversa)";
     setStatus("Modo conversa interrompido.");
     setHoloStatus("Ocioso");
+    
     try {
       recognition.stop();
     } catch (e) {}
@@ -470,6 +495,7 @@ async function lerRespostaComOpenAI(autoLoop = false) {
       if (conversationActive && recognition && autoLoop) {
         setStatus("Modo conversa: ouvindo você...");
         setHoloStatus("Modo conversa ativo");
+        jaEnviouMensagem = false;  // Reset para próxima rodada
 
         setTimeout(() => {
           if (!isListening) {
@@ -479,7 +505,7 @@ async function lerRespostaComOpenAI(autoLoop = false) {
               console.warn("Erro ao reiniciar reconhecimento:", e);
             }
           }
-        }, 500);
+        }, 1000);  // 1 segundo de pausa entre rodadas
       } else {
         setStatus("Pronto (aguardando sua mensagem)");
         setHoloStatus("À disposição.");
@@ -500,11 +526,12 @@ lerBtn.addEventListener("click", () => {
   lerRespostaComOpenAI(false);
 });
 
-vozSelect.addEventListener("change", () => {
+vozSelect.addEventListener("change", () => {  
   vozAtual = vozSelect.value;
 });
 
 // ===== INICIALIZAÇÃO =====
 carregarTransformersSalvos();
 setHoloStatus("Ocioso");
-setStatus("Pronto (aguardando sua mensagem)"); 
+setStatus("Pronto (aguardando sua mensagem)");
+console.log("✅ IA Transformers iniciada - Versão SEM DUPLICAÇÃO");
