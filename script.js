@@ -9,8 +9,8 @@ let transformerAtivoId = null;
 // Modo conversa (voz contínua)
 let recognition = null;
 let conversationActive = false;
-let isListening = false; // está ouvindo agora?
-let isSpeaking = false;  // está falando agora?
+let isRecognitionRunning = false; // controle se o mic está ligado
+let isSpeaking = false;           // controle se a IA está falando
 
 // ===== ELEMENTOS DA INTERFACE =====
 const perfilTextarea = document.getElementById("perfil");
@@ -61,7 +61,7 @@ function adicionarMensagem(quem, texto) {
   div.classList.add("msg", quem === "user" ? "usuario" : "ia");
 
   const titulo = quem === "user" ? "Você" : "IA";
-  div.innerHTML = `<strong>${titulo}</strong> ${texto}`;
+  div.innerHTML = `<strong>${titulo}</strong>${texto}`;
   mensagensDiv.appendChild(div);
   mensagensDiv.scrollTop = mensagensDiv.scrollHeight;
 }
@@ -227,7 +227,7 @@ salvarTransformerBtn.addEventListener("click", async () => {
   holoDescricao.textContent =
     perfil.slice(0, 160) + (perfil.length > 160 ? "..." : "");
 
-  // 2) Salvar no Supabase (opcional, via API)
+  // 2) Salvar no Supabase via backend
   try {
     const resp = await fetch("/api/transformers", {
       method: "POST",
@@ -242,12 +242,14 @@ salvarTransformerBtn.addEventListener("click", async () => {
 
     if (!resp.ok) {
       console.error("Erro ao salvar no Supabase:", data);
-      // não travar a UI se der 404 ou erro
-    } else {
-      console.log("Transformer salvo no Supabase:", data);
+      alert("Erro ao salvar no Supabase. Veja o console.");
+      return;
     }
+
+    console.log("Transformer salvo no Supabase:", data);
   } catch (err) {
     console.error("Erro de rede ao salvar transformer:", err);
+    alert("Erro ao conectar ao servidor para salvar o Transformer.");
   }
 
   setStatus("Transformer salvo e ativado.");
@@ -318,6 +320,7 @@ async function enviarMensagem() {
     adicionarMensagem("ia", resposta);
 
     if (conversationActive) {
+      // Em modo conversa, responde em voz automaticamente
       setStatus("Falando com você...");
       await lerRespostaComOpenAI(true); // autoLoop = true
     } else {
@@ -342,25 +345,38 @@ entradaTexto.addEventListener("keydown", (e) => {
   }
 });
 
+// ===== FUNÇÃO PARA INICIAR ESCUTA COM SEGURANÇA =====
+
+function iniciarEscuta() {
+  if (!recognition) return;
+  if (isRecognitionRunning) return; // já está ouvindo
+  if (isSpeaking) return;           // não ouvir enquanto a IA fala
+
+  try {
+    recognition.start();
+  } catch (e) {
+    console.warn("Erro ao iniciar reconhecimento:", e);
+  }
+}
+
 // ===== RECONHECIMENTO DE VOZ (MODO CONVERSA) =====
 
 if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
   recognition.lang = "pt-BR";
-  recognition.continuous = false;
+  recognition.continuous = false;  // uma frase por vez
   recognition.interimResults = false;
 
   recognition.onstart = () => {
-    isListening = true;
+    isRecognitionRunning = true;
     setStatus("Ouvindo... fale agora.");
   };
 
   recognition.onend = () => {
-    isListening = false;
-    // Aqui não reinicia automaticamente.
-    // Quem controla o loop é o áudio (TTS) ou o botão.
-    if (!conversationActive && !isSpeaking) {
+    isRecognitionRunning = false;
+    // não reinicia aqui; quem manda é o fim do áudio da IA
+    if (!conversationActive) {
       setStatus("Pronto (aguardando sua mensagem)");
     }
   };
@@ -368,23 +384,7 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   recognition.onerror = (event) => {
     console.error("Erro no reconhecimento de voz:", event.error);
     setStatus("Erro ao reconhecer voz.");
-
     if (conversationActive) {
-      // Erro comum quando não fala nada: tentamos ouvir de novo
-      if (event.error === "no-speech" || event.error === "aborted") {
-        setTimeout(() => {
-          if (conversationActive && !isListening && !isSpeaking) {
-            try {
-              recognition.start();
-            } catch (e) {
-              console.warn("Erro ao tentar reiniciar após no-speech:", e);
-            }
-          }
-        }, 800);
-        return;
-      }
-
-      // Outros erros mais sérios: desliga modo conversa
       conversationActive = false;
       falarBtn.textContent = "🎤 Falar (modo conversa)";
       setHoloStatus("Ocioso");
@@ -393,15 +393,9 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 
   recognition.onresult = (event) => {
     const texto = event.results[0][0].transcript;
-    if (!texto || !texto.trim()) return;
-
     entradaTexto.value = texto;
 
-    // Garante que vamos receber apenas UMA vez
-    try {
-      recognition.stop();
-    } catch (e) {}
-
+    // Em modo conversa, já envia automaticamente
     if (conversationActive && texto.trim()) {
       enviarMensagem();
     }
@@ -422,15 +416,7 @@ falarBtn.addEventListener("click", () => {
     falarBtn.textContent = "🛑 Parar conversa";
     setStatus("Modo conversa: ouvindo você...");
     setHoloStatus("Modo conversa ativo");
-
-    if (!isListening && !isSpeaking) {
-      try {
-        recognition.start();
-      } catch (e) {
-        console.error("Erro ao iniciar reconhecimento:", e);
-        setStatus("Erro ao iniciar reconhecimento de voz.");
-      }
-    }
+    iniciarEscuta();
   } else {
     conversationActive = false;
     falarBtn.textContent = "🎤 Falar (modo conversa)";
@@ -451,8 +437,8 @@ async function lerRespostaComOpenAI(autoLoop = false) {
   }
 
   try {
-    isSpeaking = true;
     setHoloSpeaking(true);
+    isSpeaking = true;
 
     const resp = await fetch("/api/tts", {
       method: "POST",
@@ -478,23 +464,13 @@ async function lerRespostaComOpenAI(autoLoop = false) {
       isSpeaking = false;
 
       if (conversationActive && recognition && autoLoop) {
-        // Depois que termina de falar, volta a ouvir automaticamente
+        // Volta a ouvir DEPOIS de falar
         setStatus("Modo conversa: ouvindo você...");
         setHoloStatus("Modo conversa ativo");
-
-        if (!isListening) {
-          setTimeout(() => {
-            if (conversationActive && !isListening && !isSpeaking) {
-              try {
-                recognition.start();
-              } catch (e) {
-                console.warn("Erro ao reiniciar reconhecimento:", e);
-              }
-            }
-          }, 600); // tempo para liberar o microfone
-        }
+        iniciarEscuta();
       } else {
         setStatus("Pronto (aguardando sua mensagem)");
+        setHoloStatus("À disposição.");
       }
     };
 
@@ -522,4 +498,4 @@ vozSelect.addEventListener("change", () => {
 
 carregarTransformersSalvos();
 setHoloStatus("Ocioso");
-setStatus("Pronto (aguardando sua mensagem)"); 
+setStatus("Pronto (aguardando sua mensagem)");  
