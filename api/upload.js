@@ -32,8 +32,7 @@ export default async function handler(req, res) {
   const { data: licenseData, error: licenseError } = await supabase
       .from('licenses')
       .select('active')
-      .eq('key', licenseKey)
-      .single();
+      .eq('key', licenseKey).single();
 
   if (licenseError || !licenseData) {
       return res.status(403).json({ error: 'Licença Inválida ou Não Encontrada.' });
@@ -130,5 +129,5 @@ export default async function handler(req, res) {
     }
   });
 
-  req.pipe(busboy); 
+  req.pipe(busboy);  
 }
