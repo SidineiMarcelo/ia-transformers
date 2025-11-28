@@ -357,9 +357,9 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
   
-  recognition.lang = "en-US";
+  recognition.lang = "pt-BR";
   recognition.continuous = true;
-  recognition.interimResults = false;
+  recognition.interimResults = false;  
 
   recognition.onstart = () => {
     isListening = true;
