@@ -7,16 +7,16 @@
 
 /* Scrollbar Futurista */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #050714; 
+  background: rgba(5, 7, 20, 0.5); 
 }
 ::-webkit-scrollbar-thumb {
   background: #00f2ff; 
   border-radius: 4px;
-  box-shadow: 0 0 10px #00f2ff;
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
 }
 
 body {
@@ -24,19 +24,17 @@ body {
   background: radial-gradient(circle at top center, #1a237e, #000000 80%);
   background-attachment: fixed;
   color: #e0e6ed;
-  min-height: 100vh;
-  /* IMPORTANTE: Garante que a rolagem funcione se o conteúdo for maior que a tela */
-  overflow-x: hidden; 
-  overflow-y: auto; 
+  /* MUDANÇA CRUCIAL: Altura fixa na tela (Desktop) para evitar scroll da página toda */
+  height: 100vh;
+  overflow: hidden; 
 }
 
 /* ===== APP CONTAINER ===== */
 .app {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
-  /* Em vez de min-height 100vh, usamos flex para ocupar a tela, mas permitimos rolagem */
-  min-height: 100vh;
+  padding: 16px;
+  height: 100%; /* Ocupa 100% do body */
   display: flex;
   flex-direction: column;
 }
@@ -44,14 +42,14 @@ body {
 /* ===== CABEÇALHO ===== */
 .app-header {
   text-align: center;
-  margin-bottom: 20px; /* Reduzido um pouco */
+  margin-bottom: 16px;
   text-transform: uppercase;
   position: relative;
-  flex-shrink: 0; /* Impede que o cabeçalho amasse demais */
+  flex-shrink: 0; /* Garante que o cabeçalho nunca encolha demais */
 }
 
 .app-header h1 {
-  font-size: 2rem; /* Levemente menor para caber melhor */
+  font-size: 1.8rem;
   font-weight: 800;
   letter-spacing: 0.15em;
   color: #fff;
@@ -61,7 +59,7 @@ body {
 
 .app-subtitle {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #00f2ff;
   letter-spacing: 0.1em;
   opacity: 0.8;
@@ -70,9 +68,11 @@ body {
 /* ===== LAYOUT PRINCIPAL (GRID SYSTEM) ===== */
 .layout {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   align-items: stretch;
+  /* MUDANÇA CRUCIAL: Permite que o layout ocupe o espaço restante e gerencie scroll interno */
   flex: 1; 
+  min-height: 0; /* Essencial para o flexbox permitir scroll nos filhos */
 }
 
 /* Painéis Base (Glassmorphism) */
@@ -83,8 +83,11 @@ body {
   padding: 16px;
   border: 1px solid rgba(0, 242, 255, 0.15);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  
+  /* Configuração Flex Vertical para organizar conteúdo interno */
   display: flex;
   flex-direction: column;
+  height: 100%; /* Força a coluna a respeitar a altura da tela */
   transition: border-color 0.3s ease;
 }
 
@@ -94,46 +97,46 @@ body {
 
 /* Tamanhos das Colunas */
 .col-left {
-  flex: 0 0 260px; /* Reduzido levemente para caber em telas menores */
+  flex: 0 0 260px;
   gap: 12px;
 }
 
 .col-center {
   flex: 1;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
+  overflow: hidden; /* Garante que nada vaze da coluna central */
 }
 
 .col-right {
-  flex: 0 0 280px; /* Reduzido levemente */
+  flex: 0 0 280px;
   gap: 12px;
 }
 
 /* Títulos dos Painéis */
 h2 {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #8c9eff;
   border-bottom: 1px solid rgba(140, 158, 255, 0.2);
   padding-bottom: 8px;
   margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 /* ===== HOLOGRAMA ===== */
 .holo-card {
   display: flex;
-  gap: 20px;
-  padding: 16px; /* Padding ajustado */
+  gap: 16px;
+  padding: 12px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(0, 242, 255, 0.1);
   align-items: center;
   position: relative;
-  /* Overflow visible garante que sombras/efeitos não cortem, 
-     mas precisamos controlar o conteúdo interno */
   overflow: hidden; 
-  flex-shrink: 0; /* Garante que o card da IA não diminua demais */
+  flex-shrink: 0; /* Impede que o card da IA encolha quando o chat cresce */
 }
 
 /* Efeito de Scanline */
@@ -149,8 +152,8 @@ h2 {
 
 /* Contêiner da Cabeça */
 .holo-head {
-  width: 90px; /* Reduzido de 100px para otimizar espaço */
-  height: 90px;
+  width: 80px; /* Otimizado para telas menores */
+  height: 80px;
   border-radius: 50%;
   position: relative;
   display: flex;
@@ -166,7 +169,7 @@ h2 {
 .holo-head::before {
   content: '';
   position: absolute;
-  inset: -6px;
+  inset: -5px;
   border-radius: 50%;
   border: 2px solid transparent;
   border-top-color: #00f2ff;
@@ -177,7 +180,7 @@ h2 {
 .holo-head::after {
   content: '';
   position: absolute;
-  inset: 4px;
+  inset: 3px;
   border-radius: 50%;
   border: 1px solid transparent;
   border-bottom-color: #00f2ff;
@@ -210,55 +213,60 @@ h2 {
 .holo-info {
   flex: 1;
   z-index: 1;
-  min-width: 0; /* Permite que o texto quebre linha se necessário */
+  min-width: 0;
 }
 .holo-nome {
-  font-size: 1.1rem;
+  font-size: 1rem;
   color: #fff;
-  margin-bottom: 4px;
-  white-space: nowrap; /* Evita quebra feia no nome */
+  margin-bottom: 2px;
+  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Adiciona ... se o nome for muito longo */
+  text-overflow: ellipsis;
 }
 .holo-status {
   color: #00f2ff;
   font-family: monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }
 
-/* ===== MENSAGENS E CHAT ===== */
+/* ===== MENSAGENS E CHAT (CORREÇÃO DE SCROLL) ===== */
 .status-bar {
   font-family: 'Courier New', monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #00f2ff;
   background: rgba(0, 242, 255, 0.05);
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-left: 3px solid #00f2ff;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .mensagens {
+  /* O PULO DO GATO: flex: 1 faz ela ocupar todo espaço sobrando */
   flex: 1;
-  min-height: 200px; /* Reduzido mínima para caber em telas pequenas */
-  max-height: 500px; /* Aumentado max para telas grandes */
-  overflow-y: auto;
-  padding: 16px;
+  /* Removemos altura fixa/max-height para usar o espaço flexível */
+  height: auto; 
+  min-height: 0; /* Permite encolher se necessário */
+  overflow-y: auto; /* Scroll apenas aqui dentro! */
+  
+  padding: 12px;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  margin-bottom: 12px; /* Espaço antes do input */
 }
 
 .msg {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 8px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1.4;
   position: relative;
   max-width: 90%;
-  word-wrap: break-word; /* Quebra palavras longas */
+  word-wrap: break-word;
 }
 
 .msg.usuario {
@@ -279,19 +287,27 @@ h2 {
 
 .msg strong {
   display: block;
-  font-size: 0.75rem;
-  margin-bottom: 4px;
+  font-size: 0.7rem;
+  margin-bottom: 2px;
   opacity: 0.7;
   text-transform: uppercase;
 }
 
 /* ===== INPUTS E CONTROLES ===== */
+.entrada-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Garante que o input fique fixo e não encolha */
+  flex-shrink: 0; 
+  margin-top: auto;
+}
+
 .campo-label {
   font-size: 0.75rem;
   color: #8c9eff;
   text-transform: uppercase;
   margin: 8px 0 4px;
-  letter-spacing: 0.05em;
 }
 
 .campo-input,
@@ -302,7 +318,7 @@ select,
   background: rgba(5, 7, 20, 0.8);
   border: 1px solid rgba(88, 130, 255, 0.3);
   color: #fff;
-  padding: 10px; /* Padding otimizado */
+  padding: 10px;
   border-radius: 4px;
   font-family: inherit;
   font-size: 0.9rem;
@@ -320,27 +336,27 @@ select:focus {
 }
 
 .campo-textarea {
-  min-height: 80px; /* Menor altura mínima */
-  resize: vertical;
+  flex: 1; /* Ocupa espaço disponível no painel direito */
+  min-height: 80px;
+  resize: none; /* Desativa resize manual para manter layout limpo */
 }
 
-.entrada-container {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: auto;
+/* Configuração Específica do Input de Chat */
+#entradaTexto {
+  height: 60px; /* Altura fixa para o input de chat */
+  resize: none;
 }
 
 /* Botões */
 .btn {
   border: none;
-  padding: 10px 16px; /* Ajuste leve */
+  padding: 10px 14px;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
@@ -387,25 +403,26 @@ select:focus {
 .botoes-chat {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 .botoes-chat .btn {
   flex: 1;
-  min-width: 100px;
+  min-width: 80px;
 }
 
 /* Lista de Transformers */
 .lista-transformers {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* Scroll apenas na lista */
   padding-right: 4px;
+  min-height: 0;
 }
 .transformer-item {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
   border-left: 2px solid rgba(255, 255, 255, 0.1);
-  padding: 10px;
-  margin-bottom: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
   border-radius: 0 4px 4px 0;
   cursor: pointer;
   transition: all 0.2s;
@@ -418,28 +435,23 @@ select:focus {
   border-color: #00f2ff;
   border-left: 3px solid #00f2ff;
   background: linear-gradient(90deg, rgba(0, 242, 255, 0.1), transparent);
-  box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
 }
-.transformer-name { display: block; font-weight: bold; color: #fff; }
-.transformer-sub { font-size: 0.75rem; color: #8c9eff; }
+.transformer-name { display: block; font-weight: bold; color: #fff; font-size: 0.9rem;}
+.transformer-sub { font-size: 0.7rem; color: #8c9eff; }
 
 .transformer-actions {
   display: flex;
   gap: 4px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 .transformer-actions button {
-  font-size: 0.7rem;
-  padding: 4px 8px;
+  font-size: 0.65rem;
+  padding: 3px 6px;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #fff;
   border-radius: 3px;
   cursor: pointer;
-}
-.transformer-actions button:hover {
-  border-color: #00f2ff;
-  color: #00f2ff;
 }
 
 /* ===== ANIMAÇÕES ===== */
@@ -450,87 +462,62 @@ select:focus {
 
 /* ===== RESPONSIVIDADE AVANÇADA ===== */
 
-/* NOTEBOOKS E TELAS MÉDIAS (até 1366px) */
-/* Aqui corrigimos o problema de corte em notebooks */
-@media (max-width: 1400px) {
-  .app { padding: 10px; }
-  .col-left { flex: 0 0 240px; }
-  .col-right { flex: 0 0 250px; }
-  .app-header h1 { font-size: 1.8rem; }
-}
-
-/* NOTEBOOKS COM TELA BAIXA (Altura < 800px) */
-/* Essencial para evitar corte superior em telas 1366x768 */
+/* NOTEBOOKS (Telas com altura limitada) */
 @media (max-height: 800px) {
   .app-header { margin-bottom: 10px; }
-  .app-header h1 { font-size: 1.5rem; margin-bottom: 0; }
-  .app-subtitle { display: none; } /* Esconde subtítulo para ganhar espaço */
-  
-  .holo-head { width: 70px; height: 70px; } /* Reduz a cabeça da IA */
-  .holo-card { padding: 10px; }
-  
-  .mensagens { min-height: 150px; }
-  .campo-textarea { min-height: 60px; }
+  .app-header h1 { font-size: 1.4rem; }
+  .app-subtitle { display: none; }
 }
 
 /* TABLETS (Modo Retrato) */
 @media (max-width: 1024px) {
-  .col-left { flex: 0 0 220px; }
+  .col-left { flex: 0 0 200px; }
   .col-right { flex: 0 0 220px; }
-  .botoes-chat .btn { padding: 8px; font-size: 0.75rem; }
 }
 
-/* CELULARES E TABLETS PEQUENOS (Stack Vertical) */
+/* MOBILE e TELAS PEQUENAS (Volta a comportamento de Scroll Normal) */
 @media (max-width: 900px) {
-  .app { height: auto; display: block; } /* Remove altura fixa flex */
+  body {
+    height: auto;
+    overflow-y: auto; /* Permite scroll da página no mobile */
+  }
+  
+  .app {
+    height: auto;
+    display: block; /* Remove o comportamento de altura fixa */
+  }
+
   .layout {
     flex-direction: column;
-    gap: 20px;
     height: auto;
   }
 
   .col {
+    height: auto; /* Colunas crescem conforme conteúdo */
     width: 100%;
-    flex: none;
-    margin-bottom: 10px;
+    margin-bottom: 16px;
   }
 
-  /* Ordem de exibição no celular: Chat primeiro, depois IA, depois configs */
   .col-center { order: -1; }
 
-  /* Lista de transformers menor no mobile */
-  .lista-transformers {
-    max-height: 200px; 
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-  }
-
+  /* Limita altura das áreas de scroll no mobile para não ficar infinito */
   .mensagens {
-    max-height: 350px; /* Limita altura para caber teclado */
-  }
-
-  .holo-card {
-    flex-direction: row; /* Mantém lado a lado no mobile se couber */
-    justify-content: flex-start;
-  }
-}
-
-/* CELULARES PEQUENOS */
-@media (max-width: 500px) {
-  .app-header h1 { font-size: 1.4rem; }
-  
-  .holo-card { flex-direction: column; text-align: center; }
-  
-  .botoes-chat .btn {
-    width: 100%;
-    margin-bottom: 4px;
+    max-height: 400px; 
+    min-height: 250px;
   }
   
-  /* Ajuste para teclado */
+  .lista-transformers {
+    max-height: 200px;
+  }
+  
+  /* Ajuste no teclado mobile */
   .entrada-container {
     position: sticky;
     bottom: 0;
-    background: #0b1026;
-    padding: 10px 0;
-    z-index: 10; 
+    z-index: 10;
+    background: #0b1026; /* Fundo sólido para cobrir conteúdo */
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-top: 1px solid rgba(0, 242, 255, 0.2); 
   }
 }
