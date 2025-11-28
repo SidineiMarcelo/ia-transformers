@@ -5,7 +5,7 @@
   padding: 0;
 }
 
-/* Scrollbar Futurista */
+/* Scrollbar Futurista (Fina e bonita) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -24,7 +24,7 @@ body {
   background: radial-gradient(circle at top center, #1a237e, #000000 80%);
   background-attachment: fixed;
   color: #e0e6ed;
-  /* Altura fixa na tela (Desktop) para evitar scroll da página toda */
+  /* Altura fixa na tela (Desktop) */
   height: 100vh;
   overflow: hidden; 
 }
@@ -34,7 +34,7 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   padding: 16px;
-  height: 100%; /* Ocupa 100% do body */
+  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -42,30 +42,30 @@ body {
 /* ===== CABEÇALHO ===== */
 .app-header {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px; /* Reduzi a margem para ganhar espaço */
   text-transform: uppercase;
   position: relative;
   flex-shrink: 0;
 }
 
 .app-header h1 {
-  font-size: 1.8rem;
+  font-size: 1.6rem; /* Fonte levemente menor */
   font-weight: 800;
   letter-spacing: 0.15em;
   color: #fff;
   text-shadow: 0 0 20px rgba(0, 242, 255, 0.5);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .app-subtitle {
   font-family: 'Courier New', Courier, monospace;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #00f2ff;
   letter-spacing: 0.1em;
   opacity: 0.8;
 }
 
-/* ===== LAYOUT PRINCIPAL (GRID SYSTEM) ===== */
+/* ===== LAYOUT PRINCIPAL ===== */
 .layout {
   display: flex;
   gap: 16px;
@@ -93,10 +93,13 @@ body {
   border-color: rgba(0, 242, 255, 0.4);
 }
 
-/* Tamanhos das Colunas */
+/* === AJUSTE DAS COLUNAS === */
+
 .col-left {
   flex: 0 0 260px;
   gap: 12px;
+  /* Se a lista for grande, rola aqui dentro */
+  overflow-y: auto; 
 }
 
 .col-center {
@@ -106,9 +109,14 @@ body {
   overflow: hidden;
 }
 
+/* --- AQUI ESTÁ A CORREÇÃO DO SEU PROBLEMA --- */
 .col-right {
   flex: 0 0 280px;
-  gap: 12px;
+  gap: 10px;
+  /* ADICIONADO: Permite rolar SÓ essa coluna se os botões sumirem */
+  overflow-y: auto; 
+  min-height: 0;
+  padding-bottom: 20px; /* Espaço extra no final para o botão não colar na borda */
 }
 
 /* Títulos dos Painéis */
@@ -118,8 +126,8 @@ h2 {
   letter-spacing: 0.1em;
   color: #8c9eff;
   border-bottom: 1px solid rgba(140, 158, 255, 0.2);
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
   flex-shrink: 0;
 }
 
@@ -127,7 +135,7 @@ h2 {
 .holo-card {
   display: flex;
   gap: 16px;
-  padding: 12px;
+  padding: 10px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(0, 242, 255, 0.1);
@@ -137,7 +145,6 @@ h2 {
   flex-shrink: 0;
 }
 
-/* Efeito de Scanline */
 .holo-card::before {
   content: '';
   position: absolute;
@@ -148,10 +155,10 @@ h2 {
   z-index: 0;
 }
 
-/* Contêiner da Cabeça */
+/* Cabeça Holográfica */
 .holo-head {
-  width: 80px;
-  height: 80px;
+  width: 70px; /* Levemente menor para otimizar espaço */
+  height: 70px;
   border-radius: 50%;
   position: relative;
   display: flex;
@@ -163,11 +170,10 @@ h2 {
   z-index: 1;
 }
 
-/* Anéis Giratórios */
 .holo-head::before {
   content: '';
   position: absolute;
-  inset: -5px;
+  inset: -4px;
   border-radius: 50%;
   border: 2px solid transparent;
   border-top-color: #00f2ff;
@@ -185,7 +191,6 @@ h2 {
   animation: spin-reverse 8s linear infinite;
 }
 
-/* Núcleo de Energia */
 .holo-face {
   width: 60%;
   height: 60%;
@@ -196,7 +201,6 @@ h2 {
   z-index: 2;
 }
 
-/* Estado Falando */
 .holo-head.speaking .holo-face {
   animation: pulse-speaking 1s ease-in-out infinite;
   box-shadow: 0 0 40px #00f2ff, 0 0 60px #8c00ff;
@@ -207,7 +211,6 @@ h2 {
   border-top-color: #fff;
 }
 
-/* Informações do Holograma */
 .holo-info {
   flex: 1;
   z-index: 1;
@@ -244,7 +247,6 @@ h2 {
   height: auto; 
   min-height: 0;
   overflow-y: auto;
-  
   padding: 12px;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -252,7 +254,7 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .msg {
@@ -264,7 +266,6 @@ h2 {
   max-width: 90%;
   word-wrap: break-word;
 }
-
 .msg.usuario {
   align-self: flex-end;
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.05));
@@ -272,7 +273,6 @@ h2 {
   color: #dcedc8;
   border-bottom-right-radius: 0;
 }
-
 .msg.ia {
   align-self: flex-start;
   background: linear-gradient(135deg, rgba(0, 242, 255, 0.15), rgba(0, 102, 255, 0.05));
@@ -280,7 +280,6 @@ h2 {
   color: #e0f7fa;
   border-bottom-left-radius: 0;
 }
-
 .msg strong {
   display: block;
   font-size: 0.7rem;
@@ -302,7 +301,7 @@ h2 {
   font-size: 0.75rem;
   color: #8c9eff;
   text-transform: uppercase;
-  margin: 8px 0 4px;
+  margin: 6px 0 2px;
 }
 
 .campo-input,
@@ -313,10 +312,10 @@ select,
   background: rgba(5, 7, 20, 0.8);
   border: 1px solid rgba(88, 130, 255, 0.3);
   color: #fff;
-  padding: 10px;
+  padding: 8px; /* Padding menor */
   border-radius: 4px;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: all 0.3s ease;
 }
 
@@ -331,26 +330,25 @@ select:focus {
 }
 
 .campo-textarea {
-  flex: 1;
-  min-height: 80px;
-  resize: none;
+  min-height: 70px; /* Altura menor */
+  resize: vertical;
 }
 
 #entradaTexto {
-  height: 60px;
+  height: 50px;
   resize: none;
 }
 
 /* Botões */
 .btn {
   border: none;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
@@ -448,10 +446,10 @@ select:focus {
   cursor: pointer;
 }
 
-/* ===== NOVO: ESTILOS DO MÓDULO RAG ===== */
+/* ===== ESTILOS RAG (Mais Compacto) ===== */
 .rag-container {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: 8px; /* Menos margem */
+  padding: 10px; /* Menos padding */
   background: rgba(0, 242, 255, 0.05);
   border: 1px dashed rgba(0, 242, 255, 0.3);
   border-radius: 8px;
@@ -459,48 +457,41 @@ select:focus {
 
 .rag-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #00f2ff;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-/* Input de Arquivo customizado */
 input[type="file"]::file-selector-button {
   background: rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(0, 242, 255, 0.5);
   color: #fff;
-  padding: 4px 8px;
+  padding: 3px 6px;
   border-radius: 4px;
   cursor: pointer;
-  margin-right: 10px;
+  margin-right: 8px;
   font-size: 0.7rem;
   transition: all 0.2s;
-}
-
-input[type="file"]::file-selector-button:hover {
-  background: rgba(2, 242, 255, 0.2);
 }
 
 .rag-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 8px;
   cursor: pointer;
 }
 
-/* Checkbox Futurista */
 .rag-checkbox {
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border: 1px solid #00f2ff;
   border-radius: 3px;
   background: transparent;
   cursor: pointer;
-  position: relative;
 }
 
 .rag-checkbox:checked {
@@ -509,14 +500,13 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .rag-checkbox-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #e0e6ed;
-  cursor: pointer;
 }
 
 .upload-status {
   font-size: 0.7rem;
-  margin-top: 6px;
+  margin-top: 4px;
   min-height: 1rem;
 }
 .upload-status.success { color: #00ff88; }
@@ -532,9 +522,11 @@ input[type="file"]::file-selector-button:hover {
 /* ===== RESPONSIVIDADE ===== */
 
 @media (max-height: 800px) {
-  .app-header { margin-bottom: 10px; }
+  .app-header { margin-bottom: 8px; }
   .app-header h1 { font-size: 1.4rem; }
   .app-subtitle { display: none; }
+  /* Força barra de rolagem nas colunas laterais em notebooks */
+  .col-left, .col-right { overflow-y: auto; }
 }
 
 @media (max-width: 1024px) {
@@ -562,6 +554,7 @@ input[type="file"]::file-selector-button:hover {
     height: auto;
     width: 100%;
     margin-bottom: 16px;
+    overflow: visible; /* No mobile, deixa crescer */
   }
 
   .col-center { order: -1; }
@@ -582,6 +575,6 @@ input[type="file"]::file-selector-button:hover {
     background: #0b1026;
     padding-top: 10px;
     padding-bottom: 10px;
-    border-top: 1px solid rgba(0, 242, 255, 0.2); 
+    border-top: 1px solid rgba(0, 242, 255, 0.2);  
   }
 }
