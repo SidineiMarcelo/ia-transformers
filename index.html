@@ -57,15 +57,25 @@
               id="entradaTexto"
               placeholder="Digite sua mensagem aqui..."
             ></textarea>
+            
+            <!-- ATUALIZADO: Botões separados para Iniciar e Parar conversa -->
             <div class="botoes-chat">
               <button id="enviarBtn" class="btn primario">Enviar</button>
-              <button id="falarBtn" class="btn secundario">
-                🎤 Falar (modo conversa)
+              
+              <button id="iniciarConversaBtn" class="btn secundario">
+                🎤 Iniciar Conversa
               </button>
+              
+              <button id="pararConversaBtn" class="btn perigo" disabled>
+                🛑 Parar
+              </button>
+
               <button id="lerBtn" class="btn secundario">
                 🔊 Ouvir resposta
               </button>
             </div>
+            <!-- FIM DA ATUALIZAÇÃO -->
+            
           </div>
         </section>
 
@@ -113,6 +123,6 @@
       </main>
     </div>
 
-    <script src="script.js"></script> 
+    <script src="script.js"></script>  
   </body>
 </html>
