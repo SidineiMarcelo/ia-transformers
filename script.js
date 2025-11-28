@@ -1,509 +1,422 @@
-// ===== ESTADO GLOBAL =====
-let mensagens = [];
-let perfilAtual = "";
-let ultimaRespostaIA = "";
-let vozAtual = "alloy";
+/**
+ * ARQUITETURA DE ASSISTENTE DE VOZ AVANÇADA (v2.0)
+ * Gerenciamento de estado robusto para evitar travamentos de áudio.
+ */
 
-let transformersSalvos = [];
-let transformerAtivoId = null;
+class VoiceAssistant {
+    constructor() {
+        this.recognition = null;
+        this.audioPlayer = null; // Controle total do áudio aqui
+        this.isSpeaking = false;
+        this.conversationActive = false;
+        this.silenceTimer = null;
+        
+        // Elementos da Interface
+        this.ui = {
+            holoHead: document.getElementById("holo-head"),
+            statusText: document.getElementById("holo-status-text"),
+            mensagens: document.getElementById("mensagens"),
+            input: document.getElementById("entradaTexto"),
+            btnStart: document.getElementById("iniciarConversaBtn"),
+            btnStop: document.getElementById("pararConversaBtn"),
+            btnSend: document.getElementById("enviarBtn"),
+            btnUpload: document.getElementById("btnUpload"),
+            statusUpload: document.getElementById("uploadStatus"),
+            ragCheck: document.getElementById("checkRag"),
+            keys: {
+                license: document.getElementById("licenseKeyInput"),
+                openai: document.getElementById("userApiKey")
+            }
+        };
 
-let recognition = null;
-let conversationActive = false;
-let isListening = false;
-let isProcessingMessage = false;
-let isSpeaking = false;
-let timeoutSilencio = null;
-let transcricaoCompleta = "";
-
-// 🔴 NOVA VARIÁVEL: Controla o áudio para podermos PAUSAR a qualquer momento
-let currentAudio = null;
-
-// ===== ELEMENTOS DA INTERFACE =====
-const perfilTextarea = document.getElementById("perfil");
-const aplicarPerfilBtn = document.getElementById("aplicarPerfilBtn");
-
-const mensagensDiv = document.getElementById("mensagens");
-const statusDiv = document.getElementById("status");
-const entradaTexto = document.getElementById("entradaTexto");
-const enviarBtn = document.getElementById("enviarBtn");
-
-const iniciarConversaBtn = document.getElementById("iniciarConversaBtn");
-const pararConversaBtn = document.getElementById("pararConversaBtn");
-const lerBtn = document.getElementById("lerBtn");
-
-const holoHead = document.getElementById("holo-head");
-const holoNome = document.getElementById("holo-nome");
-const holoStatusText = document.getElementById("holo-status-text");
-
-const nomeInput = document.getElementById("transformerNome");
-const vozSelect = document.getElementById("vozSelect");
-const salvarTransformerBtn = document.getElementById("salvarTransformerBtn");
-const limparTransformerBtn = document.getElementById("limparTransformerBtn");
-const limparListaBtn = document.getElementById("limparListaBtn");
-const listaTransformersDiv = document.getElementById("listaTransformers");
-
-const arquivoInput = document.getElementById("arquivoInput");
-const btnUpload = document.getElementById("btnUpload");
-const uploadStatus = document.getElementById("uploadStatus");
-const checkRag = document.getElementById("checkRag");
-const fileNameDisplay = document.getElementById("fileNameDisplay");
-
-// CAMPOS DE SEGURANÇA
-const userApiKeyInput = document.getElementById("userApiKey");
-const licenseKeyInput = document.getElementById("licenseKeyInput");
-
-// ===== UTILITÁRIOS =====
-function setStatus(texto) {
-  if (statusDiv) statusDiv.textContent = texto;
-}
-
-function setHoloStatus(texto) {
-  if (holoStatusText) holoStatusText.textContent = texto;
-}
-
-function setHoloSpeaking(flag) {
-  if (!holoHead) return;
-  if (flag) {
-    holoHead.classList.add("speaking");
-    setHoloStatus("Falando...");
-  } else {
-    holoHead.classList.remove("speaking");
-    setHoloStatus(conversationActive ? "Ouvindo..." : "Ocioso");
-  }
-}
-
-// 🔴 FUNÇÃO DE PARADA IMEDIATA (CORREÇÃO DE INTERRUPÇÃO)
-function pararAudioIA() {
-    if (currentAudio) {
-        currentAudio.pause();       // Pausa o som
-        currentAudio.currentTime = 0; // Volta pro começo
-        currentAudio = null;        // Limpa a variável
-    }
-    setHoloSpeaking(false);
-    isSpeaking = false;
-}
-
-function resetarBotoesConversa() {
-  if (iniciarConversaBtn) {
-    iniciarConversaBtn.disabled = false;
-    iniciarConversaBtn.textContent = "🎤 Iniciar Conversa";
-  }
-  if (pararConversaBtn) {
-    pararConversaBtn.disabled = true;
-  }
-}
-
-function adicionarMensagem(quem, texto) {
-  const div = document.createElement("div");
-  div.classList.add("msg", quem === "user" ? "usuario" : "ia");
-  const titulo = quem === "user" ? "Você" : "IA";
-  div.innerHTML = `<strong>${titulo}</strong> ${texto}`;
-  if (mensagensDiv) {
-    mensagensDiv.appendChild(div);
-    mensagensDiv.scrollTop = mensagensDiv.scrollHeight;
-  }
-}
-
-// ===== GERENCIAMENTO DE CHAVES =====
-window.addEventListener('load', () => {
-    const savedLicense = localStorage.getItem("ia_license_key");
-    if (savedLicense && licenseKeyInput) licenseKeyInput.value = savedLicense;
-    const savedOpenAI = localStorage.getItem("ia_client_api_key");
-    if (savedOpenAI && userApiKeyInput) userApiKeyInput.value = savedOpenAI;
-});
-
-if (licenseKeyInput) {
-    licenseKeyInput.addEventListener('input', () => localStorage.setItem("ia_license_key", licenseKeyInput.value.trim()));
-}
-if (userApiKeyInput) {
-    userApiKeyInput.addEventListener('input', () => localStorage.setItem("ia_client_api_key", userApiKeyInput.value.trim()));
-}
-
-function getAuthHeaders() {
-    return {
-        "x-license-key": licenseKeyInput ? licenseKeyInput.value.trim() : "",
-        "x-openai-key": userApiKeyInput ? userApiKeyInput.value.trim() : ""
-    };
-}
-
-// ===== PERFIL DO AGENTE =====
-if (aplicarPerfilBtn) {
-    aplicarPerfilBtn.addEventListener("click", () => {
-      const textoPerfil = perfilTextarea.value.trim();
-      const nomeAgente = nomeInput.value.trim(); 
-      
-      if (!textoPerfil) {
-        alert("Escreva o perfil do agente antes de aplicar.");
-        return;
-      }
-      perfilAtual = textoPerfil;
-      
-      // Atualiza o nome visualmente no holograma
-      if(nomeAgente) holoNome.textContent = nomeAgente;
-      
-      mensagens = [];
-      if (mensagensDiv) mensagensDiv.innerHTML = "";
-      setStatus("Perfil aplicado. Pode começar a conversar!");
-    });
-}
-
-// ===== MÓDULO RAG (UPLOAD) =====
-if (arquivoInput) {
-  arquivoInput.addEventListener('change', () => {
-    if (arquivoInput.files.length > 0 && fileNameDisplay) {
-      fileNameDisplay.textContent = arquivoInput.files[0].name;
-    }
-  });
-}
-
-if (btnUpload) {
-  btnUpload.addEventListener("click", async () => {
-    const arquivo = arquivoInput.files[0];
-    if (!arquivo) { alert("Selecione um arquivo."); return; }
-    if (licenseKeyInput && !licenseKeyInput.value.trim()) { alert("Insira a Licença."); return; }
-
-    btnUpload.disabled = true;
-    btnUpload.textContent = "Processando...";
-    if(uploadStatus) {
-        uploadStatus.textContent = "Lendo arquivo...";
-        uploadStatus.className = "upload-status loading";
+        this.init();
     }
 
-    const formData = new FormData();
-    formData.append("file", arquivo);
-
-    try {
-      const resp = await fetch("/api/upload", {
-        method: "POST",
-        headers: getAuthHeaders(),
-        body: formData,
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Erro upload");
-
-      if(uploadStatus) {
-          uploadStatus.textContent = "✅ Sucesso!";
-          uploadStatus.className = "upload-status success";
-      }
-      if(checkRag) checkRag.checked = true; 
-    } catch (err) {
-      console.error(err);
-      if(uploadStatus) {
-          uploadStatus.textContent = "❌ " + err.message;
-          uploadStatus.className = "upload-status error";
-      }
-    } finally {
-      btnUpload.disabled = false;
-      btnUpload.textContent = "Carregar Documento";
+    init() {
+        this.setupRecognition();
+        this.loadSettings();
+        this.bindEvents();
+        console.log("✅ VoiceAssistant Iniciado - Modo High-End");
     }
-  });
-}
 
-// ===== TRANSFORMERS SALVOS =====
-function carregarTransformersSalvos() {
-  try {
-    const raw = localStorage.getItem("ia_transformers_lista");
-    transformersSalvos = raw ? JSON.parse(raw) : [];
-  } catch { transformersSalvos = []; }
-  renderizarListaTransformers();
-}
+    // --- 1. CONFIGURAÇÃO DE ESCUTA (STT) ---
+    setupRecognition() {
+        if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            this.recognition = new SR();
+            this.recognition.lang = "pt-BR";
+            this.recognition.continuous = true; 
+            this.recognition.interimResults = true; // Permite interromper a IA enquanto fala
 
-function salvarListaTransformers() {
-  localStorage.setItem("ia_transformers_lista", JSON.stringify(transformersSalvos));
-}
+            this.recognition.onstart = () => {
+                this.updateStatus("Ouvindo você...", "listening");
+            };
 
-function renderizarListaTransformers() {
-  if (!listaTransformersDiv) return;
-  listaTransformersDiv.innerHTML = "";
-  if (!transformersSalvos.length) {
-    listaTransformersDiv.innerHTML = "<p class='lista-vazia'>Nenhum salvo.</p>";
-    return;
-  }
-  transformersSalvos.forEach((t) => {
-    const item = document.createElement("div");
-    item.className = "transformer-item";
-    if (t.id === transformerAtivoId) item.classList.add("active");
-    
-    const meta = document.createElement("div");
-    meta.className = "transformer-meta";
-    meta.innerHTML = `<span class="transformer-name">${t.nome}</span><span class="transformer-sub">${t.voz}</span>`;
-    
-    const actions = document.createElement("div");
-    actions.className = "transformer-actions";
-    
-    const carregarBtn = document.createElement("button");
-    carregarBtn.textContent = "Ativar";
-    carregarBtn.onclick = (e) => { e.stopPropagation(); ativarTransformer(t.id); };
-    
-    const apagarBtn = document.createElement("button");
-    apagarBtn.textContent = "X";
-    apagarBtn.onclick = (e) => { e.stopPropagation(); removerTransformer(t.id); };
-    
-    actions.append(carregarBtn, apagarBtn);
-    item.append(meta, actions);
-    item.onclick = () => ativarTransformer(t.id);
-    listaTransformersDiv.appendChild(item);
-  });
-}
+            this.recognition.onend = () => {
+                // Se caiu mas a conversa ainda está ativa, religa (exceto se a IA estiver falando)
+                if (this.conversationActive && !this.isSpeaking) {
+                    try { this.recognition.start(); } catch(e){}
+                } else if (!this.conversationActive) {
+                    this.updateStatus("Ocioso", "idle");
+                }
+            };
 
-function ativarTransformer(id) {
-  const t = transformersSalvos.find((x) => x.id === id);
-  if (!t) return;
-  transformerAtivoId = t.id;
-  if(nomeInput) nomeInput.value = t.nome || "";
-  if(perfilTextarea) perfilTextarea.value = t.perfil || "";
-  perfilAtual = t.perfil || "";
-  vozAtual = t.voz || "alloy";
-  if(vozSelect) vozSelect.value = vozAtual;
-  if(holoNome) holoNome.textContent = t.nome || "Transformer ativo";
-  mensagens = [];
-  if(mensagensDiv) mensagensDiv.innerHTML = "";
-  setStatus("Carregado.");
-  renderizarListaTransformers();
-}
-
-function removerTransformer(id) {
-  transformersSalvos = transformersSalvos.filter((x) => x.id !== id);
-  if (transformerAtivoId === id) transformerAtivoId = null;
-  salvarListaTransformers();
-  renderizarListaTransformers();
-}
-
-if(salvarTransformerBtn) {
-    salvarTransformerBtn.addEventListener("click", () => {
-      const nome = nomeInput.value.trim();
-      const perfil = perfilTextarea.value.trim();
-      if (!nome || !perfil) { alert("Preencha Nome e Perfil."); return; }
-      perfilAtual = perfil;
-      vozAtual = vozSelect.value;
-      const novo = { id: Date.now(), nome, perfil, voz: vozAtual };
-      transformersSalvos.push(novo);
-      salvarListaTransformers();
-      transformerAtivoId = novo.id;
-      if(holoNome) holoNome.textContent = nome;
-      setStatus("Salvo.");
-      renderizarListaTransformers();
-    });
-}
-
-if(limparTransformerBtn) {
-    limparTransformerBtn.addEventListener("click", () => {
-      perfilTextarea.value = ""; perfilAtual = ""; nomeInput.value = ""; transformerAtivoId = null;
-      holoNome.textContent = "Transformer ativo";
-      mensagens = []; mensagensDiv.innerHTML = "";
-      setStatus("Limpo.");
-    });
-}
-
-if(limparListaBtn) {
-    limparListaBtn.addEventListener("click", () => {
-      if(confirm("Apagar tudo?")) { transformersSalvos = []; transformerAtivoId = null; salvarListaTransformers(); renderizarListaTransformers(); }
-    });
-}
-
-// ===== CHAT COM BACKEND =====
-async function enviarMensagem() {
-  const texto = entradaTexto.value.trim();
-  if (!texto) return;
-  if (!perfilAtual) { alert("Defina o perfil."); return; }
-  
-  // 🔴 CORREÇÃO 2: Interrompe qualquer fala anterior ao enviar nova mensagem
-  pararAudioIA();
-
-  if (licenseKeyInput && !licenseKeyInput.value.trim()) { alert("Insira a Licença."); return; }
-  if (isProcessingMessage) return;
-  isProcessingMessage = true;
-
-  adicionarMensagem("user", texto);
-  entradaTexto.value = "";
-  setStatus("Pensando...");
-  const usarRag = checkRag ? checkRag.checked : false;
-  setHoloStatus(usarRag ? "Consultando..." : "Pensando...");
-  if(enviarBtn) enviarBtn.disabled = true;
-
-  mensagens.push({ role: "user", content: texto });
-
-  // 🔴 CORREÇÃO 3: Pega o NOME do input e envia para o backend
-  const nomeAgente = nomeInput.value.trim() || "Assistente";
-
-  try {
-    const resp = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({
-        profile: perfilAtual,
-        messages: mensagens,
-        useRag: usarRag,
-        name: nomeAgente // <<< Envia o nome aqui!
-      }),
-    });
-
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || "Erro servidor");
-
-    const resposta = data.reply || "Sem resposta.";
-    mensagens.push({ role: "assistant", content: resposta });
-    ultimaRespostaIA = resposta;
-    adicionarMensagem("ia", resposta);
-
-    if (conversationActive) {
-      setStatus("Falando...");
-      await lerRespostaComOpenAI(true);
-    } else {
-      setStatus("Pronto");
-      setHoloStatus("À disposição.");
+            this.recognition.onresult = (event) => this.handleVoiceInput(event);
+            
+            this.recognition.onerror = (event) => {
+                if (event.error !== 'no-speech') {
+                    console.warn("Erro Mic:", event.error);
+                    this.conversationActive = false;
+                    this.updateUIState();
+                }
+            };
+        } else {
+            this.ui.btnStart.textContent = "❌ Mic não suportado";
+            this.ui.btnStart.disabled = true;
+        }
     }
-  } catch (err) {
-    console.error(err);
-    setStatus("Erro: " + err.message);
-    adicionarMensagem("ia", "⛔ " + err.message);
-  } finally {
-    if(enviarBtn) enviarBtn.disabled = false;
-    isProcessingMessage = false;
-  }
-}
 
-if(enviarBtn) enviarBtn.addEventListener("click", enviarMensagem);
-if(entradaTexto) entradaTexto.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarMensagem(); } });
+    // --- 2. CONTROLE DE EVENTOS ---
+    bindEvents() {
+        // Chat Texto
+        this.ui.btnSend.addEventListener("click", () => this.sendMessage());
+        this.ui.input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); this.sendMessage(); }
+        });
 
-// ===== VOZ E INTERRUPÇÃO =====
-if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.lang = "pt-BR";
-  recognition.continuous = true;
-  recognition.interimResults = false;
+        // Controles de Voz
+        this.ui.btnStart.addEventListener("click", () => this.startConversation());
+        this.ui.btnStop.addEventListener("click", () => this.stopConversation());
 
-  recognition.onstart = () => {
-    isListening = true;
-    transcricaoCompleta = "";
-    clearTimeout(timeoutSilencio);
-    setStatus("Ouvindo...");
-    if(iniciarConversaBtn) { iniciarConversaBtn.disabled = true; iniciarConversaBtn.textContent = "👂 Ouvindo..."; }
-    if(pararConversaBtn) pararConversaBtn.disabled = false;
-  };
-
-  recognition.onend = () => {
-    isListening = false;
-    if (!conversationActive && !isSpeaking) {
-      setStatus("Pronto");
-      setHoloStatus("Ocioso");
-      resetarBotoesConversa();
+        // Upload RAG
+        this.ui.btnUpload?.addEventListener("click", () => this.handleUpload());
+        
+        // Salvar Chaves ao digitar
+        this.ui.keys.license.addEventListener("input", (e) => localStorage.setItem("ia_license_key", e.target.value));
+        this.ui.keys.openai.addEventListener("input", (e) => localStorage.setItem("ia_client_api_key", e.target.value));
+        
+        // Botão Ouvir Manualmente
+        document.getElementById("lerBtn")?.addEventListener("click", () => this.playLastResponse());
+        
+        // Botões de Perfil (Compatibilidade)
+        document.getElementById("salvarTransformerBtn")?.addEventListener("click", () => this.saveProfile());
+        document.getElementById("aplicarPerfilBtn")?.addEventListener("click", () => this.applyProfile());
+        
+        // Input de Arquivo (Visual)
+        const fileInput = document.getElementById("arquivoInput");
+        if(fileInput) {
+            fileInput.addEventListener('change', () => {
+                const display = document.getElementById("fileNameDisplay");
+                if(display) display.textContent = fileInput.files[0]?.name || "Nenhum arquivo";
+            });
+        }
     }
-  };
 
-  recognition.onresult = (event) => {
-    let textoAtual = "";
-    for (let i = 0; i < event.results.length; i++) { textoAtual += event.results[i][0].transcript + " "; }
-    textoAtual = textoAtual.trim();
-    transcricaoCompleta = textoAtual;
-    if(entradaTexto) entradaTexto.value = textoAtual;
-    
-    // 🔴 CORREÇÃO 2: Se o usuário falou algo, CALA A BOCA DA IA
-    if (textoAtual.length > 0 && isSpeaking) {
-        pararAudioIA();
-        console.log("Interrompendo IA porque usuário falou.");
+    loadSettings() {
+        this.ui.keys.license.value = localStorage.getItem("ia_license_key") || "";
+        this.ui.keys.openai.value = localStorage.getItem("ia_client_api_key") || "";
+        this.loadTransformers();
+    }
+
+    // --- 3. LÓGICA DE CONVERSA ---
+    startConversation() {
+        if (!this.validateLicense()) return;
+        
+        this.stopAudio(); // Garante silêncio antes de começar
+        this.conversationActive = true;
+        
+        try { this.recognition.start(); } catch(e) {}
+        this.updateUIState();
+    }
+
+    stopConversation() {
+        this.conversationActive = false;
+        this.stopAudio(); // CORTE IMEDIATO DO SOM
+        try { this.recognition.stop(); } catch(e) {}
+        
+        this.updateStatus("Conversa Pausada", "idle");
+        this.updateUIState();
+    }
+
+    // --- 4. PROCESSAMENTO DE VOZ INTELIGENTE ---
+    handleVoiceInput(event) {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            } else {
+                interimTranscript += event.results[i][0].transcript;
+            }
+        }
+
+        // === O SEGREDO DA INTERRUPÇÃO ===
+        // Se a IA estiver falando e o microfone detectar voz nova, CORTA a IA.
+        if (this.isSpeaking && (finalTranscript.length > 0 || interimTranscript.length > 2)) {
+            console.log("🗣️ Interrupção detectada! Cortando a IA.");
+            this.stopAudio(); 
+        }
+
+        if (finalTranscript || interimTranscript) {
+            this.ui.input.value = finalTranscript || interimTranscript;
+        }
+
+        // Timer de Silêncio para enviar automaticamente
+        clearTimeout(this.silenceTimer);
+        if (finalTranscript.trim().length > 0 && this.conversationActive) {
+            this.silenceTimer = setTimeout(() => {
+                this.sendMessage(); // Envia após 2.5s de silêncio
+            }, 2500);
+        }
+    }
+
+    // --- 5. ENVIO AO SERVIDOR (CÉREBRO) ---
+    async sendMessage() {
+        const text = this.ui.input.value.trim();
+        if (!text) return;
+        if (!this.validateLicense()) return;
+
+        // Para qualquer áudio anterior
+        this.stopAudio();
+
+        this.addMessage("user", text);
+        this.ui.input.value = "";
+        this.updateStatus("Pensando (GPT-4o)...", "thinking");
+
+        // Prepara dados
+        const messages = this.getHistory();
+        const profile = document.getElementById("perfil").value;
+        const name = document.getElementById("transformerNome").value;
+        const useRag = this.ui.ragCheck?.checked || false;
+
+        try {
+            const resp = await fetch("/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", ...this.getAuthHeaders() },
+                body: JSON.stringify({ messages, profile, useRag, name })
+            });
+
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                if (resp.status === 403) throw new Error("LICENÇA BLOQUEADA/INVÁLIDA");
+                throw new Error(err.error || `Erro ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            const reply = data.reply;
+
+            this.addMessage("ia", reply);
+            window.ultimaRespostaIA = reply; // Backup global
+
+            if (this.conversationActive) {
+                this.speak(reply);
+            } else {
+                this.updateStatus("Pronto", "idle");
+            }
+
+        } catch (err) {
+            console.error(err);
+            this.addMessage("ia", `⛔ ${err.message}`);
+            this.updateStatus("Erro", "idle");
+        }
+    }
+
+    // --- 6. FALA (TTS HD) ---
+    async speak(text) {
+        if (!text) return;
+        
+        // Pausa reconhecimento para não ouvir a si mesma (Eco)
+        try { this.recognition.stop(); } catch(e) {}
+        
+        this.isSpeaking = true;
+        this.updateStatus("Falando...", "speaking");
+
+        const voice = document.getElementById("vozSelect").value || "alloy";
+
+        try {
+            const resp = await fetch("/api/tts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", ...this.getAuthHeaders() },
+                body: JSON.stringify({ text, voice })
+            });
+
+            if (!resp.ok) throw new Error("Erro na geração de áudio");
+
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            
+            // Cria o player de áudio
+            this.audioPlayer = new Audio(url);
+            
+            this.audioPlayer.onended = () => {
+                this.isSpeaking = false;
+                this.updateStatus("Ouvindo...", "listening");
+                // Religa o microfone automaticamente
+                if (this.conversationActive) {
+                    try { this.recognition.start(); } catch(e){}
+                }
+            };
+
+            await this.audioPlayer.play();
+
+        } catch (e) {
+            console.error(e);
+            this.isSpeaking = false;
+            this.updateStatus("Erro de Voz", "idle");
+            // Se falhar o áudio, religa o mic se estiver em conversa
+            if (this.conversationActive) try { this.recognition.start(); } catch(e){}
+        }
+    }
+
+    // 🛑 FUNÇÃO CRÍTICA: MATA O SOM
+    stopAudio() {
+        if (this.audioPlayer) {
+            this.audioPlayer.pause();
+            this.audioPlayer.currentTime = 0;
+            this.audioPlayer = null;
+        }
+        this.isSpeaking = false;
+        this.ui.holoHead.classList.remove("speaking");
+    }
+
+    // --- UPLOAD RAG ---
+    async handleUpload() {
+        const file = this.ui.arquivoInput.files[0];
+        if (!file) return alert("Selecione um arquivo.");
+        if (!this.validateLicense()) return;
+
+        this.ui.btnUpload.disabled = true;
+        this.ui.btnUpload.textContent = "Processando...";
+        this.ui.statusUpload.textContent = "Lendo documento...";
+        this.ui.statusUpload.className = "upload-status loading";
+
+        const fd = new FormData();
+        fd.append("file", file);
+
+        try {
+            const resp = await fetch("/api/upload", {
+                method: "POST",
+                headers: this.getAuthHeaders(),
+                body: fd
+            });
+            const data = await resp.json();
+            
+            if (!resp.ok) throw new Error(data.error || "Erro upload");
+
+            this.ui.statusUpload.textContent = "✅ Memória Atualizada!";
+            this.ui.statusUpload.className = "upload-status success";
+            if(this.ui.ragCheck) this.ui.ragCheck.checked = true;
+
+        } catch (e) {
+            this.ui.statusUpload.textContent = "❌ " + e.message;
+            this.ui.statusUpload.className = "upload-status error";
+        } finally {
+            this.ui.btnUpload.disabled = false;
+            this.ui.btnUpload.textContent = "Carregar Documento";
+        }
+    }
+
+    // --- AUXILIARES ---
+    getAuthHeaders() {
+        return {
+            "x-license-key": this.ui.keys.license.value.trim(),
+            "x-openai-key": this.ui.keys.openai.value.trim()
+        };
+    }
+
+    validateLicense() {
+        if (!this.ui.keys.license.value.trim()) {
+            alert("⚠️ Insira a Chave de Licença nas configurações.");
+            return false;
+        }
+        return true;
+    }
+
+    updateStatus(text, state) {
+        this.ui.statusText.textContent = text;
+        if (state === "speaking") this.ui.holoHead.classList.add("speaking");
+        else this.ui.holoHead.classList.remove("speaking");
+    }
+
+    updateUIState() {
+        if (this.conversationActive) {
+            this.ui.btnStart.disabled = true;
+            this.ui.btnStop.disabled = false;
+            this.ui.btnStart.textContent = "👂 Ouvindo...";
+        } else {
+            this.ui.btnStart.disabled = false;
+            this.ui.btnStop.disabled = true;
+            this.ui.btnStart.textContent = "🎤 Iniciar Conversa";
+        }
+    }
+
+    addMessage(role, text) {
+        const div = document.createElement("div");
+        div.classList.add("msg", role === "user" ? "usuario" : "ia");
+        div.innerHTML = `<strong>${role === "user" ? "Você" : "IA"}</strong> ${text}`;
+        this.ui.mensagens.appendChild(div);
+        this.ui.mensagens.scrollTop = this.ui.mensagens.scrollHeight;
+    }
+
+    getHistory() {
+        return Array.from(this.ui.mensagens.children).map(div => ({
+            role: div.classList.contains("usuario") ? "user" : "assistant",
+            content: div.innerText.replace(/^(Você|IA)\s/, "")
+        })).slice(-10);
+    }
+
+    // Lógica simplificada de Transformers Salvos
+    loadTransformers() {
+        try {
+            const raw = localStorage.getItem("ia_transformers_lista");
+            window.transformersSalvos = raw ? JSON.parse(raw) : [];
+            this.renderTransformers();
+        } catch { window.transformersSalvos = []; }
+    }
+
+    saveProfile() {
+        const nome = document.getElementById("transformerNome").value;
+        const perfil = document.getElementById("perfil").value;
+        const voz = document.getElementById("vozSelect").value;
+        if (!nome || !perfil) return alert("Preencha Nome e Perfil");
+        
+        window.transformersSalvos.push({ id: Date.now(), nome, perfil, voz });
+        localStorage.setItem("ia_transformers_lista", JSON.stringify(window.transformersSalvos));
+        this.renderTransformers();
+        alert("Agente salvo!");
+    }
+
+    applyProfile() {
+        // Apenas visual, o perfil é lido dinamicamente no envio
+        this.updateStatus("Perfil Aplicado!", "idle");
+    }
+
+    renderTransformers() {
+        const lista = document.getElementById("listaTransformers");
+        if (!lista) return;
+        lista.innerHTML = "";
+        
+        window.transformersSalvos.forEach(t => {
+            const div = document.createElement("div");
+            div.className = "transformer-item";
+            div.innerHTML = `<div class="transformer-meta"><span class="transformer-name">${t.nome}</span></div>`;
+            div.onclick = () => {
+                document.getElementById("transformerNome").value = t.nome;
+                document.getElementById("perfil").value = t.perfil;
+                document.getElementById("vozSelect").value = t.voz || "alloy";
+                this.updateStatus("Agente Carregado", "idle");
+            };
+            lista.appendChild(div);
+        });
     }
     
-    clearTimeout(timeoutSilencio);
-    if (conversationActive && textoAtual.trim()) {
-      timeoutSilencio = setTimeout(() => {
-        try { recognition.stop(); } catch (e) {}
-        setTimeout(() => { if (entradaTexto.value.trim()) enviarMensagem(); }, 200);
-      }, 2500);
+    playLastResponse() {
+        if (window.ultimaRespostaIA) this.speak(window.ultimaRespostaIA);
     }
-  };
-} else {
-  if (iniciarConversaBtn) {
-    iniciarConversaBtn.disabled = true;
-    iniciarConversaBtn.textContent = "🎤 Não suportado";
-  }
 }
 
-if (iniciarConversaBtn) {
-  iniciarConversaBtn.addEventListener("click", () => {
-    if (!recognition) return;
-    // Garante que a IA pare de falar ao ativar o microfone
-    pararAudioIA();
-    
-    if (licenseKeyInput && !licenseKeyInput.value.trim()) { alert("Insira Licença."); return; }
-    conversationActive = true;
-    transcricaoCompleta = "";
-    clearTimeout(timeoutSilencio);
-    setHoloStatus("Modo conversa ativo");
-    try { recognition.start(); } catch (e) { conversationActive = false; }
-  });
-}
-
-if (pararConversaBtn) {
-  pararConversaBtn.addEventListener("click", () => {
-    // 🔴 CORREÇÃO 1: Botão PARAR agora mata o áudio e o microfone
-    if (recognition) try { recognition.stop(); } catch (e) {}
-    
-    conversationActive = false;
-    clearTimeout(timeoutSilencio);
-    
-    pararAudioIA(); // <--- AQUI É O SEGREDO DO BOTÃO PARAR
-
-    setStatus("Parado.");
-    setHoloStatus("Ocioso");
-    resetarBotoesConversa();
-  });
-}
-
-async function lerRespostaComOpenAI(autoLoop = false) {
-  if (!ultimaRespostaIA) return;
-
-  try {
-    setHoloSpeaking(true);
-    isSpeaking = true;
-    try { recognition.stop(); } catch(e){}
-
-    const resp = await fetch("/api/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify({ text: ultimaRespostaIA, voice: vozAtual || "alloy" }),
-    });
-
-    if (!resp.ok) throw new Error("Erro TTS");
-
-    const arrayBuffer = await resp.arrayBuffer();
-    const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
-    const url = URL.createObjectURL(blob);
-    
-    // 🔴 Salva o áudio na variável global para poder ser cancelado
-    currentAudio = new Audio(url);
-
-    currentAudio.onended = () => {
-      URL.revokeObjectURL(url);
-      currentAudio = null;
-      setHoloSpeaking(false);
-      isSpeaking = false;
-
-      if (conversationActive && recognition && autoLoop && !isProcessingMessage) {
-        setStatus("Ouvindo...");
-        setTimeout(() => { if (!isListening && conversationActive) try { recognition.start(); } catch (e) {} }, 1000);
-      } else {
-        setStatus("Pronto");
-        setHoloStatus("À disposição.");
-        if (!conversationActive) resetarBotoesConversa();
-      }
-    };
-    
-    currentAudio.play();
-  } catch (err) {
-    console.error(err);
-    setHoloSpeaking(false);
-    isSpeaking = false;
-    currentAudio = null;
-    setStatus("Erro áudio.");
-    if(conversationActive) try { recognition.start(); } catch(e){}
-  }
-}
-
-if (lerBtn) lerBtn.addEventListener("click", () => { pararAudioIA(); lerRespostaComOpenAI(false); });
-if(vozSelect) vozSelect.addEventListener("change", () => vozAtual = vozSelect.value);
-
-carregarTransformersSalvos();  
-setHoloStatus("Ocioso");
-setStatus("Pronto");  
+// Inicializa a classe quando a página carrega
+window.addEventListener('DOMContentLoaded', () => {
+    window.assistant = new VoiceAssistant();
+});  
