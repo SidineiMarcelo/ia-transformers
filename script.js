@@ -380,15 +380,34 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   };
 
   recognition.onerror = (event) => {
-    console.error("Erro no reconhecimento de voz:", event.error);
-    setStatus("Erro ao reconhecer voz.");
+  console.error("Erro no reconhecimento de voz:", event.error);
+  
+  // Se for "no-speech", tenta novamente automaticamente
+  if (event.error === "no-speech" && conversationActive) {
+    console.log("⚠️ Nenhuma fala detectada, tentando novamente...");
+    setStatus("Não ouvi nada, pode falar novamente...");
     
-    if (conversationActive) {
-      conversationActive = false;
-      falarBtn.textContent = "🎤 Falar (modo conversa)";
-      setHoloStatus("Ocioso");
-    }
-  };
+    setTimeout(() => {
+      if (conversationActive && !isListening) {
+        try {
+          recognition.start();
+          console.log("🔄 Reconhecimento reiniciado após no-speech");
+        } catch (e) {
+          console.warn("Erro ao reiniciar:", e);
+        }
+      }
+    }, 1000); 
+    return;
+  }
+  
+  // Para outros erros, para o modo conversa
+  setStatus("Erro ao reconhecer voz.");
+  if (conversationActive) {
+    conversationActive = false;
+    falarBtn.textContent = "🎤 Falar (modo conversa)";
+    setHoloStatus("Ocioso");
+  }
+};
 
   recognition.onresult = (event) => {
     let textoAtual = "";
