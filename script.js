@@ -15,6 +15,9 @@ let isSpeaking = false;
 let timeoutSilencio = null;
 let transcricaoCompleta = "";
 
+// Variável para controlar o áudio atual (Permite interromper a fala)
+let currentAudio = null;
+
 // ===== ELEMENTOS DA INTERFACE =====
 const perfilTextarea = document.getElementById("perfil");
 const aplicarPerfilBtn = document.getElementById("aplicarPerfilBtn");
@@ -45,7 +48,6 @@ const uploadStatus = document.getElementById("uploadStatus");
 const checkRag = document.getElementById("checkRag");
 const fileNameDisplay = document.getElementById("fileNameDisplay");
 
-// NOVOS CAMPOS DE SEGURANÇA
 const userApiKeyInput = document.getElementById("userApiKey");
 const licenseKeyInput = document.getElementById("licenseKeyInput");
 
@@ -62,11 +64,11 @@ function setHoloSpeaking(flag) {
   if (!holoHead) return;
   if (flag) {
     holoHead.classList.add("speaking");
-    setHoloStatus("Falando com você...");
+    setHoloStatus("Falando...");
   } else {
     holoHead.classList.remove("speaking");
     setHoloStatus(
-      conversationActive ? "Modo conversa ativo" : "Ocioso"
+      conversationActive ? "Ouvindo..." : "Ocioso"
     );
   }
 }
@@ -81,6 +83,17 @@ function resetarBotoesConversa() {
   }
 }
 
+// Função para PARAR o áudio imediatamente (Interrupção)
+function pararAudioIA() {
+    if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+    }
+    setHoloSpeaking(false);
+    isSpeaking = false;
+}
+
 function adicionarMensagem(quem, texto) {
   const div = document.createElement("div");
   div.classList.add("msg", quem === "user" ? "usuario" : "ia");
@@ -92,8 +105,7 @@ function adicionarMensagem(quem, texto) {
   }
 }
 
-// ===== GERENCIAMENTO DE CHAVES (SEGURANÇA) =====
-// 1. Ao abrir o site, recupera as senhas salvas no navegador
+// ===== GERENCIAMENTO DE CHAVES =====
 window.addEventListener('load', () => {
     const savedLicense = localStorage.getItem("ia_license_key");
     if (savedLicense && licenseKeyInput) licenseKeyInput.value = savedLicense;
@@ -102,19 +114,13 @@ window.addEventListener('load', () => {
     if (savedOpenAI && userApiKeyInput) userApiKeyInput.value = savedOpenAI;
 });
 
-// 2. Ao digitar, salva automaticamente no navegador
 if (licenseKeyInput) {
-    licenseKeyInput.addEventListener('input', () => {
-        localStorage.setItem("ia_license_key", licenseKeyInput.value.trim());
-    });
+    licenseKeyInput.addEventListener('input', () => localStorage.setItem("ia_license_key", licenseKeyInput.value.trim()));
 }
 if (userApiKeyInput) {
-    userApiKeyInput.addEventListener('input', () => {
-        localStorage.setItem("ia_client_api_key", userApiKeyInput.value.trim());
-    });
+    userApiKeyInput.addEventListener('input', () => localStorage.setItem("ia_client_api_key", userApiKeyInput.value.trim()));
 }
 
-// 3. Função auxiliar para pegar as chaves na hora de enviar
 function getAuthHeaders() {
     return {
         "x-license-key": licenseKeyInput ? licenseKeyInput.value.trim() : "",
@@ -126,11 +132,19 @@ function getAuthHeaders() {
 if (aplicarPerfilBtn) {
     aplicarPerfilBtn.addEventListener("click", () => {
       const textoPerfil = perfilTextarea.value.trim();
+      const nomeAgente = nomeInput.value.trim();
+      
       if (!textoPerfil) {
         alert("Escreva o perfil do agente antes de aplicar.");
         return;
       }
+      
       perfilAtual = textoPerfil;
+      // Atualiza visualmente o nome
+      if (nomeAgente) {
+          holoNome.textContent = nomeAgente;
+      }
+      
       mensagens = [];
       if (mensagensDiv) mensagensDiv.innerHTML = "";
       setStatus("Perfil aplicado. Pode começar a conversar!");
@@ -152,13 +166,11 @@ if (btnUpload) {
   btnUpload.addEventListener("click", async () => {
     const arquivo = arquivoInput.files[0];
     if (!arquivo) {
-      alert("Selecione um arquivo PDF ou DOCX primeiro.");
+      alert("Selecione um arquivo primeiro.");
       return;
     }
-
-    // BLOQUEIO: Se não tiver licença, nem tenta enviar
     if (licenseKeyInput && !licenseKeyInput.value.trim()) {
-        alert("⚠️ ATENÇÃO: Insira a Chave de Licença nas configurações para usar o sistema.");
+        alert("Insira a Chave de Licença.");
         return;
     }
 
@@ -175,19 +187,13 @@ if (btnUpload) {
     try {
       const resp = await fetch("/api/upload", {
         method: "POST",
-        // AQUI: Enviamos as senhas no cabeçalho da requisição
-        headers: getAuthHeaders(), 
+        headers: getAuthHeaders(),
         body: formData,
       });
 
       const data = await resp.json();
 
-      if (!resp.ok) {
-          // Tratamento de erros específicos
-          if (resp.status === 403) throw new Error("ACESSO NEGADO: " + (data.error || "Licença inválida"));
-          if (resp.status === 401) throw new Error("ERRO OPENAI: " + (data.error || "Chave incorreta"));
-          throw new Error(data.error || "Erro no upload");
-      }
+      if (!resp.ok) throw new Error(data.error || "Erro no upload");
 
       if(uploadStatus) {
           uploadStatus.textContent = "✅ Documento aprendido com sucesso!";
@@ -230,7 +236,7 @@ function renderizarListaTransformers() {
   if (!transformersSalvos.length) {
     const p = document.createElement("p");
     p.className = "lista-vazia";
-    p.textContent = "Nenhum Transformer salvo ainda.";
+    p.textContent = "Nenhum Transformer salvo.";
     listaTransformersDiv.appendChild(p);
     return;
   }
@@ -238,9 +244,7 @@ function renderizarListaTransformers() {
   transformersSalvos.forEach((t) => {
     const item = document.createElement("div");
     item.className = "transformer-item";
-    if (t.id === transformerAtivoId) {
-      item.classList.add("active");
-    }
+    if (t.id === transformerAtivoId) item.classList.add("active");
 
     const meta = document.createElement("div");
     meta.className = "transformer-meta";
@@ -249,7 +253,7 @@ function renderizarListaTransformers() {
     n.textContent = t.nome || "Sem nome";
     const sub = document.createElement("span");
     sub.className = "transformer-sub";
-    sub.textContent = `Voz: ${t.voz} · Perfil: ${t.perfil.slice(0, 40)}${t.perfil.length > 40 ? "..." : ""}`;
+    sub.textContent = `Voz: ${t.voz} · ${t.perfil.slice(0, 30)}...`;
 
     meta.appendChild(n);
     meta.appendChild(sub);
@@ -292,7 +296,7 @@ function ativarTransformer(id) {
   if(holoNome) holoNome.textContent = t.nome || "Transformer ativo";
   mensagens = [];
   if(mensagensDiv) mensagensDiv.innerHTML = "";
-  setStatus("Transformer carregado. Pode começar a conversar.");
+  setStatus("Transformer carregado.");
   renderizarListaTransformers();
 }
 
@@ -310,8 +314,7 @@ if(salvarTransformerBtn) {
     salvarTransformerBtn.addEventListener("click", async () => {
       const nome = nomeInput.value.trim();
       const perfil = perfilTextarea.value.trim();
-      if (!nome) { alert("Dê um nome."); return; }
-      if (!perfil) { alert("Defina um perfil."); return; }
+      if (!nome || !perfil) { alert("Nome e Perfil são obrigatórios."); return; }
 
       perfilAtual = perfil;
       vozAtual = vozSelect.value;
@@ -322,7 +325,6 @@ if(salvarTransformerBtn) {
       transformerAtivoId = novoLocal.id;
       if(holoNome) holoNome.textContent = nome;
 
-      // Opcional: Salvar no Supabase
       try {
         await fetch("/api/transformers", {
           method: "POST",
@@ -331,7 +333,7 @@ if(salvarTransformerBtn) {
         });
       } catch (err) { console.error(err); }
 
-      setStatus("Transformer salvo e ativado.");
+      setStatus("Salvo e ativado.");
       renderizarListaTransformers();
     });
 }
@@ -370,9 +372,11 @@ async function enviarMensagem() {
     return;
   }
 
-  // BLOQUEIO: Verifica se a licença foi preenchida
+  // Interrompe qualquer áudio anterior antes de enviar
+  pararAudioIA();
+
   if (licenseKeyInput && !licenseKeyInput.value.trim()) {
-      alert("🚫 Acesso Negado: Você precisa inserir sua Chave de Licença nas configurações.");
+      alert("⚠️ Insira sua Chave de Licença.");
       return;
   }
 
@@ -382,16 +386,19 @@ async function enviarMensagem() {
   adicionarMensagem("user", texto);
   entradaTexto.value = "";
   setStatus("Gerando resposta...");
+  
   const usarRag = checkRag ? checkRag.checked : false;
-  setHoloStatus(usarRag ? "Consultando documentos..." : "Pensando...");
+  setHoloStatus(usarRag ? "Consultando..." : "Pensando...");
   if(enviarBtn) enviarBtn.disabled = true;
 
   mensagens.push({ role: "user", content: texto });
 
+  // Pega o NOME do agente para enviar
+  const nomeAgente = nomeInput.value.trim() || "Assistente";
+
   try {
     const resp = await fetch("/api/chat", {
       method: "POST",
-      // AQUI: Envia as senhas para o chat também
       headers: { 
           "Content-Type": "application/json",
           ...getAuthHeaders() 
@@ -399,17 +406,17 @@ async function enviarMensagem() {
       body: JSON.stringify({
         profile: perfilAtual,
         messages: mensagens,
-        useRag: usarRag 
+        useRag: usarRag,
+        name: nomeAgente // <<< ENVIA O NOME AQUI
       }),
     });
 
     const data = await resp.json();
 
     if (!resp.ok) {
-        // Exibe erros claros de bloqueio para o usuário
-        if (resp.status === 403) throw new Error("LICENÇA BLOQUEADA: " + (data.error || "Contate o suporte."));
-        if (resp.status === 401) throw new Error("CHAVE OPENAI INVÁLIDA: Verifique o campo nas configurações.");
-        throw new Error(data.error || "Erro na resposta do servidor");
+        if (resp.status === 403) throw new Error("LICENÇA BLOQUEADA.");
+        if (resp.status === 401) throw new Error("CHAVE OPENAI INVÁLIDA.");
+        throw new Error(data.error || "Erro servidor");
     }
 
     const resposta = data.reply || "Erro ao gerar.";
@@ -419,7 +426,7 @@ async function enviarMensagem() {
     adicionarMensagem("ia", resposta);
 
     if (conversationActive) {
-      setStatus("Falando com você...");
+      setStatus("Falando...");
       await lerRespostaComOpenAI(true);
     } else {
       setStatus("Pronto");
@@ -428,8 +435,8 @@ async function enviarMensagem() {
   } catch (err) {
     console.error(err);
     setStatus("Erro: " + err.message);
-    setHoloStatus("Bloqueado/Erro");
-    adicionarMensagem("ia", "⛔ <strong>ERRO:</strong> " + err.message);
+    setHoloStatus("Erro");
+    adicionarMensagem("ia", "⛔ " + err.message);
   } finally {
     if(enviarBtn) enviarBtn.disabled = false;
     isProcessingMessage = false;
@@ -477,11 +484,10 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 
   recognition.onerror = (event) => {
     if (event.error === "no-speech" && conversationActive) {
-      setStatus("Tentando ouvir novamente...");
+      setStatus("...");
       setTimeout(() => { if (conversationActive && !isListening && !isSpeaking) try { recognition.start(); } catch (e) {} }, 1000);
       return;
     }
-    setStatus("Erro microfone.");
     conversationActive = false;
     resetarBotoesConversa();
   };
@@ -494,6 +500,11 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
     textoAtual = textoAtual.trim();
     transcricaoCompleta = textoAtual;
     if(entradaTexto) entradaTexto.value = textoAtual;
+    
+    // Se o usuário falou algo, interrompe a fala da IA imediatamente
+    if (textoAtual.length > 0 && isSpeaking) {
+        pararAudioIA();
+    }
     
     clearTimeout(timeoutSilencio);
     if (conversationActive && textoAtual.trim()) {
@@ -513,9 +524,12 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 if (iniciarConversaBtn) {
   iniciarConversaBtn.addEventListener("click", () => {
     if (!recognition) return;
-    // Bloqueio no botão de voz também
+    
+    // Interrompe áudio anterior se houver
+    pararAudioIA();
+
     if (licenseKeyInput && !licenseKeyInput.value.trim()) {
-        alert("Insira a Chave de Licença para iniciar.");
+        alert("Insira a Licença.");
         return;
     }
     conversationActive = true;
@@ -528,12 +542,18 @@ if (iniciarConversaBtn) {
 
 if (pararConversaBtn) {
   pararConversaBtn.addEventListener("click", () => {
-    if (!recognition) return;
+    // 1. Para o Reconhecimento de Voz
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
     conversationActive = false;
     clearTimeout(timeoutSilencio);
-    setStatus("Interrompido.");
+    
+    // 2. CORREÇÃO IMPORTANTE: Para o Áudio da IA imediatamente!
+    pararAudioIA();
+
+    setStatus("Parado.");
     setHoloStatus("Ocioso");
-    try { recognition.stop(); } catch (e) {}
     resetarBotoesConversa();
   });
 }
@@ -545,13 +565,14 @@ async function lerRespostaComOpenAI(autoLoop = false) {
   try {
     setHoloSpeaking(true);
     isSpeaking = true;
+    // Tenta parar reconhecimento para evitar eco
     try { recognition.stop(); } catch(e){}
 
     const resp = await fetch("/api/tts", {
       method: "POST",
       headers: { 
           "Content-Type": "application/json",
-          ...getAuthHeaders() // Manda chave para TTS também (custa dinheiro)
+          ...getAuthHeaders() 
       },
       body: JSON.stringify({
         text: ultimaRespostaIA,
@@ -564,12 +585,16 @@ async function lerRespostaComOpenAI(autoLoop = false) {
     const arrayBuffer = await resp.arrayBuffer();
     const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
+    
+    // Salva na variável global para poder parar depois
+    currentAudio = new Audio(url);
 
-    audio.onended = () => {
+    currentAudio.onended = () => {
       URL.revokeObjectURL(url);
+      currentAudio = null;
       setHoloSpeaking(false);
       isSpeaking = false;
+
       if (conversationActive && recognition && autoLoop && !isProcessingMessage) {
         setStatus("Ouvindo...");
         setHoloStatus("Modo conversa ativo");
@@ -580,19 +605,26 @@ async function lerRespostaComOpenAI(autoLoop = false) {
         if (!conversationActive) resetarBotoesConversa();
       }
     };
-    audio.play();
+    
+    currentAudio.play();
   } catch (err) {
     console.error(err);
     setHoloSpeaking(false);
     isSpeaking = false;
+    currentAudio = null;
     setStatus("Erro áudio.");
     if(conversationActive) try { recognition.start(); } catch(e){}
   }
 }
 
-if (lerBtn) lerBtn.addEventListener("click", () => lerRespostaComOpenAI(false));
+if (lerBtn) {
+    lerBtn.addEventListener("click", () => {
+        pararAudioIA(); // Para anterior antes de começar novo
+        lerRespostaComOpenAI(false);
+    });
+}
 if(vozSelect) vozSelect.addEventListener("change", () => vozAtual = vozSelect.value);
 
 carregarTransformersSalvos();  
 setHoloStatus("Ocioso");
-setStatus("Pronto");   
+setStatus("Pronto"); 
