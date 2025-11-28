@@ -23,7 +23,8 @@ const mensagensDiv = document.getElementById("mensagens");
 const statusDiv = document.getElementById("status");
 const entradaTexto = document.getElementById("entradaTexto");
 const enviarBtn = document.getElementById("enviarBtn");
-const falarBtn = document.getElementById("falarBtn");
+const iniciarConversaBtn = document.getElementById("iniciarConversaBtn");
+const pararConversaBtn = document.getElementById("pararConversaBtn");
 const lerBtn = document.getElementById("lerBtn");
 
 const holoHead = document.getElementById("holo-head");
@@ -352,14 +353,14 @@ entradaTexto.addEventListener("keydown", (e) => {
   }
 });
 
-// ===== RECONHECIMENTO DE VOZ - VERSÃO CORRIGIDA (NÃO DUPLICA) =====
+// ===== RECONHECIMENTO DE VOZ =====
 if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
   
   recognition.lang = "pt-BR";
   recognition.continuous = true;
-  recognition.interimResults = false;  
+  recognition.interimResults = false;
 
   recognition.onstart = () => {
     isListening = true;
@@ -380,34 +381,27 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   };
 
   recognition.onerror = (event) => {
-  console.error("Erro no reconhecimento de voz:", event.error);
-  
-  // Se for "no-speech", tenta novamente automaticamente
-  if (event.error === "no-speech" && conversationActive) {
-    console.log("⚠️ Nenhuma fala detectada, tentando novamente...");
-    setStatus("Não ouvi nada, pode falar novamente...");
+    console.error("Erro no reconhecimento de voz:", event.error);
     
-    setTimeout(() => {
-      if (conversationActive && !isListening) {
-        try {
-          recognition.start();
-          console.log("🔄 Reconhecimento reiniciado após no-speech");
-        } catch (e) {
-          console.warn("Erro ao reiniciar:", e);
+    if (event.error === "no-speech" && conversationActive) {
+      console.log("⚠️ Nenhuma fala detectada, tentando novamente...");
+      setStatus("Não ouvi nada, pode falar novamente...");
+      
+      setTimeout(() => {
+        if (conversationActive && !isListening) {
+          try {
+            recognition.start();
+            console.log("🔄 Reconhecimento reiniciado após no-speech");
+          } catch (e) {
+            console.warn("Erro ao reiniciar:", e);
+          }
         }
-      }
-    }, 1000); 
-    return;
-  }
-  
-  // Para outros erros, para o modo conversa
-  setStatus("Erro ao reconhecer voz.");
-  if (conversationActive) {
-    conversationActive = false;
-    falarBtn.textContent = "🎤 Falar (modo conversa)";
-    setHoloStatus("Ocioso");
-  }
-};
+      }, 1000);
+      return;
+    }
+    
+    setStatus("Erro ao reconhecer voz.");
+  };
 
   recognition.onresult = (event) => {
     let textoAtual = "";
@@ -440,20 +434,24 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
     }
   };
 } else {
-  falarBtn.disabled = true;
-  falarBtn.textContent = "🎤 Falar (não suportado neste navegador)";
+  if (document.getElementById("iniciarConversaBtn")) {
+    document.getElementById("iniciarConversaBtn").disabled = true;
+    document.getElementById("iniciarConversaBtn").textContent = "🎤 Não suportado";
+  }
 }
 
-falarBtn.textContent = "🎤 Falar (modo conversa)";
-
-falarBtn.addEventListener("click", () => {
-  if (!recognition) return;
-
-  if (!conversationActive) {
+// ===== BOTÕES DE CONVERSA (2 BOTÕES SEPARADOS) =====
+if (iniciarConversaBtn) {
+  iniciarConversaBtn.addEventListener("click", () => {
+    if (!recognition) return;
+    
     conversationActive = true;
     transcricaoCompleta = "";
     clearTimeout(timeoutSilencio);
-    falarBtn.textContent = "🛑 Parar conversa";
+    
+    iniciarConversaBtn.disabled = true;
+    if (pararConversaBtn) pararConversaBtn.disabled = false;
+    
     setStatus("Modo conversa: ouvindo você...");
     setHoloStatus("Modo conversa ativo");
     
@@ -462,18 +460,27 @@ falarBtn.addEventListener("click", () => {
     } catch (e) {
       console.warn("Erro ao iniciar reconhecimento:", e);
     }
-  } else {
+  });
+}
+
+if (pararConversaBtn) {
+  pararConversaBtn.addEventListener("click", () => {
+    if (!recognition) return;
+    
     conversationActive = false;
     clearTimeout(timeoutSilencio);
-    falarBtn.textContent = "🎤 Falar (modo conversa)";
+    
+    if (iniciarConversaBtn) iniciarConversaBtn.disabled = false;
+    pararConversaBtn.disabled = true;
+    
     setStatus("Modo conversa interrompido.");
     setHoloStatus("Ocioso");
     
     try {
       recognition.stop();
     } catch (e) {}
-  }
-});
+  });
+}
 
 // ===== TTS COM OPENAI (VOZ HUMANIZADA) =====
 async function lerRespostaComOpenAI(autoLoop = false) {
@@ -539,16 +546,18 @@ async function lerRespostaComOpenAI(autoLoop = false) {
   }
 }
 
-lerBtn.addEventListener("click", () => {
-  lerRespostaComOpenAI(false);
-});
+if (lerBtn) {
+  lerBtn.addEventListener("click", () => {
+    lerRespostaComOpenAI(false);
+  });
+}
 
 vozSelect.addEventListener("change", () => {
   vozAtual = vozSelect.value;
 });
 
 // ===== INICIALIZAÇÃO =====
-carregarTransformersSalvos(); 
+carregarTransformersSalvos();  
 setHoloStatus("Ocioso");
 setStatus("Pronto (aguardando sua mensagem)");
-console.log("✅ IA Transformers iniciada - Versão CORRIGIDA"); 
+console.log("✅ IA Transformers iniciada - Versão com 2 botões");
