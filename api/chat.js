@@ -1,83 +1,107 @@
-import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
+import OpenAI from 'openai';
+import pdf from 'pdf-parse';
+import mammoth from 'mammoth';
+import Busboy from 'busboy';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Conectar ao Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
-// Tenta usar a chave de serviço (mais poderosa) se disponível, senão usa a padrão
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY; 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+export const config = {
+  api: {
+    bodyParser: false, 
+  },
+};
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { messages, profile, useRag } = req.body; // Recebemos a flag useRag aqui
+  const busboy = Busboy({ headers: req.headers });
+  let fileBuffer = null;
+  let fileName = '';
+  let fileType = '';
 
-  try {
-    let systemPrompt = `Você é uma IA interpretando o seguinte perfil: ${profile}.`;
-    
-    // LÓGICA RAG (Só ativa se a caixinha estiver marcada no Frontend)
-    if (useRag) {
-      // 1. Pegar a última pergunta do usuário
-      const lastUserMessage = messages[messages.length - 1].content;
+  busboy.on('file', (name, file, info) => {
+    const { filename, mimeType } = info;
+    fileName = filename;
+    fileType = mimeType;
 
-      // 2. Transformar a pergunta em vetor (Embedding)
-      const embeddingResponse = await openai.embeddings.create({
-        model: 'text-embedding-3-small',
-        input: lastUserMessage,
-      });
-      const queryEmbedding = embeddingResponse.data[0].embedding;
+    const chunks = [];
+    file.on('data', (data) => chunks.push(data));
+    file.on('end', () => {
+      fileBuffer = Buffer.concat(chunks);
+    });
+  });
 
-      // 3. Buscar no Supabase os trechos mais parecidos
-      // Chama a função 'match_documents' que criamos no SQL do Supabase
-      const { data: documents, error } = await supabase.rpc('match_documents', {
-        query_embedding: queryEmbedding,
-        match_threshold: 0.5, // Similaridade mínima
-        match_count: 3        // Top 3 trechos mais relevantes
-      });
-
-      if (error) console.error("Erro no Supabase:", error);
-
-      // 4. Se achou documentos, adiciona ao contexto do System Prompt
-      if (documents && documents.length > 0) {
-        const contextText = documents.map(doc => doc.content).join('\n---\n');
-        
-        systemPrompt += `
-        
-        INSTRUÇÃO ESPECIAL (RAG ATIVO):
-        O usuário carregou documentos de referência. Use EXCLUSIVAMENTE o contexto abaixo para responder a pergunta. 
-        Se a resposta não estiver no contexto, diga gentilmente que não encontrou a informação nos documentos fornecidos.
-        
-        CONTEXTO DOS DOCUMENTOS:
-        ${contextText}
-        `;
-      } else {
-        systemPrompt += `\n(Aviso interno: O usuário pediu para usar documentos, mas a busca no banco não retornou nada relevante para essa pergunta específica.)`;
-      }
+  busboy.on('finish', async () => {
+    if (!fileBuffer) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     }
 
-    // Montar a lista final de mensagens para a OpenAI
-    const messagesForOpenAI = [
-      { role: "system", content: systemPrompt },
-      ...messages
-    ];
+    try {
+      let textContent = '';
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // ou gpt-3.5-turbo
-      messages: messagesForOpenAI,
-      temperature: 0.7,
-    });
+      if (fileType === 'application/pdf') {
+        const data = await pdf(fileBuffer);
+        textContent = data.text;
+      } else if (
+        fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ) {
+        const result = await mammoth.extractRawText({ buffer: fileBuffer });
+        textContent = result.value;
+      } else {
+        return res.status(400).json({ error: 'Formato não suportado. Use PDF ou DOCX.' });
+      }
 
-    const reply = completion.choices[0].message.content;
-    res.status(200).json({ reply });
+      textContent = textContent.replace(/\s+/g, ' ').trim();
+      
+      if (textContent.length < 50) {
+         return res.status(400).json({ error: 'O arquivo parece vazio ou tem pouco texto.' });
+      }
 
-  } catch (error) {
-    console.error('Erro na API:', error);
-    res.status(500).json({ error: 'Erro interno ao processar chat.' }); 
-  }
+      // === AJUSTE 1: Cortes menores e com sobreposição (Overlap) ===
+      const chunkSize = 500;  // Pedaços menores para busca mais precisa
+      const chunkOverlap = 100; // Repete o finalzinho para manter contexto
+      const chunks = [];
+
+      // Lógica de loop com sobreposição
+      for (let i = 0; i < textContent.length; i += (chunkSize - chunkOverlap)) {
+        const chunk = textContent.slice(i, i + chunkSize);
+        chunks.push(chunk);
+        // Se chegamos ao fim do texto, paramos
+        if (i + chunkSize >= textContent.length) break;
+      }
+
+      // === FIM DO AJUSTE 1 ===
+
+      for (const chunk of chunks) {
+        const embeddingResponse = await openai.embeddings.create({
+          model: 'text-embedding-3-small',
+          input: chunk,
+        });
+        const embedding = embeddingResponse.data[0].embedding;
+
+        const { error } = await supabase.from('documents').insert({
+          content: chunk,
+          metadata: { fileName },
+          embedding: embedding,
+        });
+
+        if (error) throw error;
+      }
+
+      return res.status(200).json({ success: true, message: 'Arquivo processado e memória criada!' });
+
+    } catch (error) {
+      console.error('Erro no processamento:', error);
+      return res.status(500).json({ error: 'Erro interno ao processar arquivo: ' + error.message });
+    }
+  });
+
+  req.pipe(busboy); 
 }
