@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>IA Transformers</title>
+    <!-- ESSENCIAL PARA CELULAR FICAR RESPONSIVO -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -16,7 +17,7 @@
       </header>
 
       <main class="layout">
-        <!-- LADO ESQUERDO -->
+        <!-- LADO ESQUERDO: lista de Transformers -->
         <aside class="col col-left">
           <h2>Transformers salvos</h2>
           <div id="listaTransformers" class="lista-transformers"></div>
@@ -25,7 +26,7 @@
           </button>
         </aside>
 
-        <!-- CENTRO -->
+        <!-- CENTRO: holograma + chat -->
         <section class="col col-center">
           <div class="holo-card">
             <div id="holo-head" class="holo-head">
@@ -64,7 +65,7 @@
           </div>
         </section>
 
-        <!-- DIREITA -->
+        <!-- DIREITA: configuração do Transformer -->
         <aside class="col col-right">
           <h2>Configurações de Acesso</h2>
 
@@ -105,10 +106,15 @@
           />
 
           <label class="campo-label" for="vozSelect">Voz da IA</label>
+          
+          <!-- AQUI ESTÃO TODAS AS 6 VOZES DISPONÍVEIS -->
           <select id="vozSelect" class="campo-input">
-            <option value="alloy">Alloy (neutra, clara)</option>
-            <option value="onyx">Onyx (masculina, firme)</option>
-            <option value="nova">Nova (suave)</option>
+            <option value="alloy">Alloy (Neutra / Feminina - Padrão)</option>
+            <option value="echo">Echo (Masculina - Suave e equilibrada)</option>
+            <option value="fable">Fable (Masculina - Sotaque britânico leve)</option>
+            <option value="onyx">Onyx (Masculina - Grave e profunda)</option>
+            <option value="nova">Nova (Feminina - Energética e casual)</option>
+            <option value="shimmer">Shimmer (Feminina - Clara e confiante)</option>
           </select>
 
           <label class="campo-label" for="perfil">Perfil do agente</label>
@@ -157,6 +163,6 @@
       </main>
     </div>
 
-    <script src="script.js"></script> 
+    <script src="script.js"></script>
   </body>
-</html>
+</html>  

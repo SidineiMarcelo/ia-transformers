@@ -15,7 +15,7 @@ let isSpeaking = false;
 let timeoutSilencio = null;
 let transcricaoCompleta = "";
 
-// Variável para controlar o áudio atual (Permite interromper a fala)
+// 🔴 NOVA VARIÁVEL: Controla o áudio para podermos PAUSAR a qualquer momento
 let currentAudio = null;
 
 // ===== ELEMENTOS DA INTERFACE =====
@@ -48,6 +48,7 @@ const uploadStatus = document.getElementById("uploadStatus");
 const checkRag = document.getElementById("checkRag");
 const fileNameDisplay = document.getElementById("fileNameDisplay");
 
+// CAMPOS DE SEGURANÇA
 const userApiKeyInput = document.getElementById("userApiKey");
 const licenseKeyInput = document.getElementById("licenseKeyInput");
 
@@ -67,10 +68,19 @@ function setHoloSpeaking(flag) {
     setHoloStatus("Falando...");
   } else {
     holoHead.classList.remove("speaking");
-    setHoloStatus(
-      conversationActive ? "Ouvindo..." : "Ocioso"
-    );
+    setHoloStatus(conversationActive ? "Ouvindo..." : "Ocioso");
   }
+}
+
+// 🔴 FUNÇÃO DE PARADA IMEDIATA (CORREÇÃO DE INTERRUPÇÃO)
+function pararAudioIA() {
+    if (currentAudio) {
+        currentAudio.pause();       // Pausa o som
+        currentAudio.currentTime = 0; // Volta pro começo
+        currentAudio = null;        // Limpa a variável
+    }
+    setHoloSpeaking(false);
+    isSpeaking = false;
 }
 
 function resetarBotoesConversa() {
@@ -81,17 +91,6 @@ function resetarBotoesConversa() {
   if (pararConversaBtn) {
     pararConversaBtn.disabled = true;
   }
-}
-
-// Função para PARAR o áudio imediatamente (Interrupção)
-function pararAudioIA() {
-    if (currentAudio) {
-        currentAudio.pause();
-        currentAudio.currentTime = 0;
-        currentAudio = null;
-    }
-    setHoloSpeaking(false);
-    isSpeaking = false;
 }
 
 function adicionarMensagem(quem, texto) {
@@ -109,7 +108,6 @@ function adicionarMensagem(quem, texto) {
 window.addEventListener('load', () => {
     const savedLicense = localStorage.getItem("ia_license_key");
     if (savedLicense && licenseKeyInput) licenseKeyInput.value = savedLicense;
-
     const savedOpenAI = localStorage.getItem("ia_client_api_key");
     if (savedOpenAI && userApiKeyInput) userApiKeyInput.value = savedOpenAI;
 });
@@ -132,18 +130,16 @@ function getAuthHeaders() {
 if (aplicarPerfilBtn) {
     aplicarPerfilBtn.addEventListener("click", () => {
       const textoPerfil = perfilTextarea.value.trim();
-      const nomeAgente = nomeInput.value.trim();
+      const nomeAgente = nomeInput.value.trim(); 
       
       if (!textoPerfil) {
         alert("Escreva o perfil do agente antes de aplicar.");
         return;
       }
-      
       perfilAtual = textoPerfil;
-      // Atualiza visualmente o nome
-      if (nomeAgente) {
-          holoNome.textContent = nomeAgente;
-      }
+      
+      // Atualiza o nome visualmente no holograma
+      if(nomeAgente) holoNome.textContent = nomeAgente;
       
       mensagens = [];
       if (mensagensDiv) mensagensDiv.innerHTML = "";
@@ -154,10 +150,8 @@ if (aplicarPerfilBtn) {
 // ===== MÓDULO RAG (UPLOAD) =====
 if (arquivoInput) {
   arquivoInput.addEventListener('change', () => {
-    if (arquivoInput.files.length > 0) {
-      if(fileNameDisplay) fileNameDisplay.textContent = arquivoInput.files[0].name;
-    } else {
-      if(fileNameDisplay) fileNameDisplay.textContent = "Nenhum arquivo selecionado";
+    if (arquivoInput.files.length > 0 && fileNameDisplay) {
+      fileNameDisplay.textContent = arquivoInput.files[0].name;
     }
   });
 }
@@ -165,19 +159,13 @@ if (arquivoInput) {
 if (btnUpload) {
   btnUpload.addEventListener("click", async () => {
     const arquivo = arquivoInput.files[0];
-    if (!arquivo) {
-      alert("Selecione um arquivo primeiro.");
-      return;
-    }
-    if (licenseKeyInput && !licenseKeyInput.value.trim()) {
-        alert("Insira a Chave de Licença.");
-        return;
-    }
+    if (!arquivo) { alert("Selecione um arquivo."); return; }
+    if (licenseKeyInput && !licenseKeyInput.value.trim()) { alert("Insira a Licença."); return; }
 
     btnUpload.disabled = true;
     btnUpload.textContent = "Processando...";
     if(uploadStatus) {
-        uploadStatus.textContent = "Validando licença e lendo arquivo...";
+        uploadStatus.textContent = "Lendo arquivo...";
         uploadStatus.className = "upload-status loading";
     }
 
@@ -190,17 +178,14 @@ if (btnUpload) {
         headers: getAuthHeaders(),
         body: formData,
       });
-
       const data = await resp.json();
-
-      if (!resp.ok) throw new Error(data.error || "Erro no upload");
+      if (!resp.ok) throw new Error(data.error || "Erro upload");
 
       if(uploadStatus) {
-          uploadStatus.textContent = "✅ Documento aprendido com sucesso!";
+          uploadStatus.textContent = "✅ Sucesso!";
           uploadStatus.className = "upload-status success";
       }
       if(checkRag) checkRag.checked = true; 
-
     } catch (err) {
       console.error(err);
       if(uploadStatus) {
@@ -219,9 +204,7 @@ function carregarTransformersSalvos() {
   try {
     const raw = localStorage.getItem("ia_transformers_lista");
     transformersSalvos = raw ? JSON.parse(raw) : [];
-  } catch {
-    transformersSalvos = [];
-  }
+  } catch { transformersSalvos = []; }
   renderizarListaTransformers();
 }
 
@@ -232,54 +215,33 @@ function salvarListaTransformers() {
 function renderizarListaTransformers() {
   if (!listaTransformersDiv) return;
   listaTransformersDiv.innerHTML = "";
-
   if (!transformersSalvos.length) {
-    const p = document.createElement("p");
-    p.className = "lista-vazia";
-    p.textContent = "Nenhum Transformer salvo.";
-    listaTransformersDiv.appendChild(p);
+    listaTransformersDiv.innerHTML = "<p class='lista-vazia'>Nenhum salvo.</p>";
     return;
   }
-
   transformersSalvos.forEach((t) => {
     const item = document.createElement("div");
     item.className = "transformer-item";
     if (t.id === transformerAtivoId) item.classList.add("active");
-
+    
     const meta = document.createElement("div");
     meta.className = "transformer-meta";
-    const n = document.createElement("span");
-    n.className = "transformer-name";
-    n.textContent = t.nome || "Sem nome";
-    const sub = document.createElement("span");
-    sub.className = "transformer-sub";
-    sub.textContent = `Voz: ${t.voz} · ${t.perfil.slice(0, 30)}...`;
-
-    meta.appendChild(n);
-    meta.appendChild(sub);
-
+    meta.innerHTML = `<span class="transformer-name">${t.nome}</span><span class="transformer-sub">${t.voz}</span>`;
+    
     const actions = document.createElement("div");
     actions.className = "transformer-actions";
-
+    
     const carregarBtn = document.createElement("button");
     carregarBtn.textContent = "Ativar";
-    carregarBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      ativarTransformer(t.id);
-    });
-
+    carregarBtn.onclick = (e) => { e.stopPropagation(); ativarTransformer(t.id); };
+    
     const apagarBtn = document.createElement("button");
     apagarBtn.textContent = "X";
-    apagarBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      removerTransformer(t.id);
-    });
-
-    actions.appendChild(carregarBtn);
-    actions.appendChild(apagarBtn);
-    item.appendChild(meta);
-    item.appendChild(actions);
-    item.addEventListener("click", () => ativarTransformer(t.id));
+    apagarBtn.onclick = (e) => { e.stopPropagation(); removerTransformer(t.id); };
+    
+    actions.append(carregarBtn, apagarBtn);
+    item.append(meta, actions);
+    item.onclick = () => ativarTransformer(t.id);
     listaTransformersDiv.appendChild(item);
   });
 }
@@ -296,69 +258,46 @@ function ativarTransformer(id) {
   if(holoNome) holoNome.textContent = t.nome || "Transformer ativo";
   mensagens = [];
   if(mensagensDiv) mensagensDiv.innerHTML = "";
-  setStatus("Transformer carregado.");
+  setStatus("Carregado.");
   renderizarListaTransformers();
 }
 
 function removerTransformer(id) {
   transformersSalvos = transformersSalvos.filter((x) => x.id !== id);
-  if (transformerAtivoId === id) {
-    transformerAtivoId = null;
-    if(holoNome) holoNome.textContent = "Transformer ativo";
-  }
+  if (transformerAtivoId === id) transformerAtivoId = null;
   salvarListaTransformers();
   renderizarListaTransformers();
 }
 
 if(salvarTransformerBtn) {
-    salvarTransformerBtn.addEventListener("click", async () => {
+    salvarTransformerBtn.addEventListener("click", () => {
       const nome = nomeInput.value.trim();
       const perfil = perfilTextarea.value.trim();
-      if (!nome || !perfil) { alert("Nome e Perfil são obrigatórios."); return; }
-
+      if (!nome || !perfil) { alert("Preencha Nome e Perfil."); return; }
       perfilAtual = perfil;
       vozAtual = vozSelect.value;
-
-      const novoLocal = { id: Date.now(), nome, perfil, voz: vozAtual };
-      transformersSalvos.push(novoLocal);
+      const novo = { id: Date.now(), nome, perfil, voz: vozAtual };
+      transformersSalvos.push(novo);
       salvarListaTransformers();
-      transformerAtivoId = novoLocal.id;
+      transformerAtivoId = novo.id;
       if(holoNome) holoNome.textContent = nome;
-
-      try {
-        await fetch("/api/transformers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: nome, profile: perfil }),
-        });
-      } catch (err) { console.error(err); }
-
-      setStatus("Salvo e ativado.");
+      setStatus("Salvo.");
       renderizarListaTransformers();
     });
 }
 
 if(limparTransformerBtn) {
     limparTransformerBtn.addEventListener("click", () => {
-      if(perfilTextarea) perfilTextarea.value = "";
-      perfilAtual = "";
-      if(nomeInput) nomeInput.value = "";
-      transformerAtivoId = null;
-      if(holoNome) holoNome.textContent = "Transformer ativo";
-      mensagens = [];
-      if(mensagensDiv) mensagensDiv.innerHTML = "";
-      setStatus("Perfil limpo.");
+      perfilTextarea.value = ""; perfilAtual = ""; nomeInput.value = ""; transformerAtivoId = null;
+      holoNome.textContent = "Transformer ativo";
+      mensagens = []; mensagensDiv.innerHTML = "";
+      setStatus("Limpo.");
     });
 }
 
 if(limparListaBtn) {
     limparListaBtn.addEventListener("click", () => {
-      if (!transformersSalvos.length) return;
-      if (!confirm("Apagar tudo?")) return;
-      transformersSalvos = [];
-      transformerAtivoId = null;
-      salvarListaTransformers();
-      renderizarListaTransformers();
+      if(confirm("Apagar tudo?")) { transformersSalvos = []; transformerAtivoId = null; salvarListaTransformers(); renderizarListaTransformers(); }
     });
 }
 
@@ -366,61 +305,43 @@ if(limparListaBtn) {
 async function enviarMensagem() {
   const texto = entradaTexto.value.trim();
   if (!texto) return;
-
-  if (!perfilAtual) {
-    alert("Defina o perfil primeiro.");
-    return;
-  }
-
-  // Interrompe qualquer áudio anterior antes de enviar
+  if (!perfilAtual) { alert("Defina o perfil."); return; }
+  
+  // 🔴 CORREÇÃO 2: Interrompe qualquer fala anterior ao enviar nova mensagem
   pararAudioIA();
 
-  if (licenseKeyInput && !licenseKeyInput.value.trim()) {
-      alert("⚠️ Insira sua Chave de Licença.");
-      return;
-  }
-
+  if (licenseKeyInput && !licenseKeyInput.value.trim()) { alert("Insira a Licença."); return; }
   if (isProcessingMessage) return;
   isProcessingMessage = true;
 
   adicionarMensagem("user", texto);
   entradaTexto.value = "";
-  setStatus("Gerando resposta...");
-  
+  setStatus("Pensando...");
   const usarRag = checkRag ? checkRag.checked : false;
   setHoloStatus(usarRag ? "Consultando..." : "Pensando...");
   if(enviarBtn) enviarBtn.disabled = true;
 
   mensagens.push({ role: "user", content: texto });
 
-  // Pega o NOME do agente para enviar
+  // 🔴 CORREÇÃO 3: Pega o NOME do input e envia para o backend
   const nomeAgente = nomeInput.value.trim() || "Assistente";
 
   try {
     const resp = await fetch("/api/chat", {
       method: "POST",
-      headers: { 
-          "Content-Type": "application/json",
-          ...getAuthHeaders() 
-      },
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify({
         profile: perfilAtual,
         messages: mensagens,
         useRag: usarRag,
-        name: nomeAgente // <<< ENVIA O NOME AQUI
+        name: nomeAgente // <<< Envia o nome aqui!
       }),
     });
 
     const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "Erro servidor");
 
-    if (!resp.ok) {
-        if (resp.status === 403) throw new Error("LICENÇA BLOQUEADA.");
-        if (resp.status === 401) throw new Error("CHAVE OPENAI INVÁLIDA.");
-        throw new Error(data.error || "Erro servidor");
-    }
-
-    const resposta = data.reply || "Erro ao gerar.";
-
+    const resposta = data.reply || "Sem resposta.";
     mensagens.push({ role: "assistant", content: resposta });
     ultimaRespostaIA = resposta;
     adicionarMensagem("ia", resposta);
@@ -435,7 +356,6 @@ async function enviarMensagem() {
   } catch (err) {
     console.error(err);
     setStatus("Erro: " + err.message);
-    setHoloStatus("Erro");
     adicionarMensagem("ia", "⛔ " + err.message);
   } finally {
     if(enviarBtn) enviarBtn.disabled = false;
@@ -444,16 +364,9 @@ async function enviarMensagem() {
 }
 
 if(enviarBtn) enviarBtn.addEventListener("click", enviarMensagem);
-if(entradaTexto) {
-    entradaTexto.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        enviarMensagem();
-      }
-    });
-}
+if(entradaTexto) entradaTexto.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarMensagem(); } });
 
-// ===== RECONHECIMENTO DE VOZ =====
+// ===== VOZ E INTERRUPÇÃO =====
 if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
@@ -466,10 +379,7 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
     transcricaoCompleta = "";
     clearTimeout(timeoutSilencio);
     setStatus("Ouvindo...");
-    if(iniciarConversaBtn) {
-        iniciarConversaBtn.disabled = true;
-        iniciarConversaBtn.textContent = "👂 Ouvindo...";
-    }
+    if(iniciarConversaBtn) { iniciarConversaBtn.disabled = true; iniciarConversaBtn.textContent = "👂 Ouvindo..."; }
     if(pararConversaBtn) pararConversaBtn.disabled = false;
   };
 
@@ -482,28 +392,17 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
     }
   };
 
-  recognition.onerror = (event) => {
-    if (event.error === "no-speech" && conversationActive) {
-      setStatus("...");
-      setTimeout(() => { if (conversationActive && !isListening && !isSpeaking) try { recognition.start(); } catch (e) {} }, 1000);
-      return;
-    }
-    conversationActive = false;
-    resetarBotoesConversa();
-  };
-
   recognition.onresult = (event) => {
     let textoAtual = "";
-    for (let i = 0; i < event.results.length; i++) {
-      textoAtual += event.results[i][0].transcript + " ";
-    }
+    for (let i = 0; i < event.results.length; i++) { textoAtual += event.results[i][0].transcript + " "; }
     textoAtual = textoAtual.trim();
     transcricaoCompleta = textoAtual;
     if(entradaTexto) entradaTexto.value = textoAtual;
     
-    // Se o usuário falou algo, interrompe a fala da IA imediatamente
+    // 🔴 CORREÇÃO 2: Se o usuário falou algo, CALA A BOCA DA IA
     if (textoAtual.length > 0 && isSpeaking) {
         pararAudioIA();
+        console.log("Interrompendo IA porque usuário falou.");
     }
     
     clearTimeout(timeoutSilencio);
@@ -524,14 +423,10 @@ if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
 if (iniciarConversaBtn) {
   iniciarConversaBtn.addEventListener("click", () => {
     if (!recognition) return;
-    
-    // Interrompe áudio anterior se houver
+    // Garante que a IA pare de falar ao ativar o microfone
     pararAudioIA();
-
-    if (licenseKeyInput && !licenseKeyInput.value.trim()) {
-        alert("Insira a Licença.");
-        return;
-    }
+    
+    if (licenseKeyInput && !licenseKeyInput.value.trim()) { alert("Insira Licença."); return; }
     conversationActive = true;
     transcricaoCompleta = "";
     clearTimeout(timeoutSilencio);
@@ -542,15 +437,13 @@ if (iniciarConversaBtn) {
 
 if (pararConversaBtn) {
   pararConversaBtn.addEventListener("click", () => {
-    // 1. Para o Reconhecimento de Voz
-    if (recognition) {
-        try { recognition.stop(); } catch (e) {}
-    }
+    // 🔴 CORREÇÃO 1: Botão PARAR agora mata o áudio e o microfone
+    if (recognition) try { recognition.stop(); } catch (e) {}
+    
     conversationActive = false;
     clearTimeout(timeoutSilencio);
     
-    // 2. CORREÇÃO IMPORTANTE: Para o Áudio da IA imediatamente!
-    pararAudioIA();
+    pararAudioIA(); // <--- AQUI É O SEGREDO DO BOTÃO PARAR
 
     setStatus("Parado.");
     setHoloStatus("Ocioso");
@@ -558,26 +451,18 @@ if (pararConversaBtn) {
   });
 }
 
-// ===== TTS COM OPENAI =====
 async function lerRespostaComOpenAI(autoLoop = false) {
   if (!ultimaRespostaIA) return;
 
   try {
     setHoloSpeaking(true);
     isSpeaking = true;
-    // Tenta parar reconhecimento para evitar eco
     try { recognition.stop(); } catch(e){}
 
     const resp = await fetch("/api/tts", {
       method: "POST",
-      headers: { 
-          "Content-Type": "application/json",
-          ...getAuthHeaders() 
-      },
-      body: JSON.stringify({
-        text: ultimaRespostaIA,
-        voice: vozAtual || "alloy",
-      }),
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify({ text: ultimaRespostaIA, voice: vozAtual || "alloy" }),
     });
 
     if (!resp.ok) throw new Error("Erro TTS");
@@ -586,7 +471,7 @@ async function lerRespostaComOpenAI(autoLoop = false) {
     const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
     const url = URL.createObjectURL(blob);
     
-    // Salva na variável global para poder parar depois
+    // 🔴 Salva o áudio na variável global para poder ser cancelado
     currentAudio = new Audio(url);
 
     currentAudio.onended = () => {
@@ -597,7 +482,6 @@ async function lerRespostaComOpenAI(autoLoop = false) {
 
       if (conversationActive && recognition && autoLoop && !isProcessingMessage) {
         setStatus("Ouvindo...");
-        setHoloStatus("Modo conversa ativo");
         setTimeout(() => { if (!isListening && conversationActive) try { recognition.start(); } catch (e) {} }, 1000);
       } else {
         setStatus("Pronto");
@@ -617,14 +501,9 @@ async function lerRespostaComOpenAI(autoLoop = false) {
   }
 }
 
-if (lerBtn) {
-    lerBtn.addEventListener("click", () => {
-        pararAudioIA(); // Para anterior antes de começar novo
-        lerRespostaComOpenAI(false);
-    });
-}
+if (lerBtn) lerBtn.addEventListener("click", () => { pararAudioIA(); lerRespostaComOpenAI(false); });
 if(vozSelect) vozSelect.addEventListener("change", () => vozAtual = vozSelect.value);
 
 carregarTransformersSalvos();  
 setHoloStatus("Ocioso");
-setStatus("Pronto"); 
+setStatus("Pronto");  
