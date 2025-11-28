@@ -66,7 +66,36 @@
 
         <!-- DIREITA -->
         <aside class="col col-right">
-          <h2>Configurações</h2>
+          <h2>Configurações de Acesso</h2>
+
+          <!-- ÁREA DE CONTROLE DE ACESSO E CUSTO -->
+          <div style="background: rgba(0,242,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0,242,255,0.2); margin-bottom: 12px;">
+            
+            <!-- 1. LICENÇA (SEU CONTROLE) -->
+            <label class="campo-label" style="color: #ffeb3b;">🔑 Chave de Licença (Obrigatório)</label>
+            <input
+              id="licenseKeyInput"
+              type="password"
+              class="campo-input"
+              placeholder="Digite sua licença..."
+              style="border-color: #ffeb3b; margin-bottom: 8px;"
+            />
+
+            <!-- 2. OPENAI (CUSTO DO CLIENTE) -->
+            <label class="campo-label" style="color: #00ff88;">🤖 Chave OpenAI (Cliente)</label>
+            <input
+              id="userApiKey"
+              type="password"
+              class="campo-input"
+              placeholder="sk-..."
+              style="border-color: #00ff88;"
+            />
+            <small style="color: #a9b4ff; font-size: 0.65rem; display: block; margin-top: 4px;">
+              A chave OpenAI é usada para processar as mensagens. A Licença libera seu acesso ao app.
+            </small>
+          </div>
+
+          <h2>Configuração do Agente</h2>
           <label class="campo-label" for="transformerNome">Nome</label>
           <input
             id="transformerNome"
@@ -95,14 +124,12 @@
             </button>
           </div>
 
-          <!-- MÓDULO RAG (ATUALIZADO COM SCROLL DE NOME) -->
+          <!-- MÓDULO RAG -->
           <div class="rag-container">
             <span class="rag-label">📂 Base de Conhecimento (RAG)</span>
             
-            <!-- Estrutura nova: Botão + Caixa de Nome com Scroll -->
             <div class="custom-file-upload">
               <label for="arquivoInput" class="btn secundario small">📁 Escolher</label>
-              <!-- Esta caixa mostrará o nome e terá barra de rolagem -->
               <div id="fileNameDisplay" class="file-name-box">Nenhum arquivo selecionado</div>
               <input type="file" id="arquivoInput" accept=".pdf,.docx" style="display: none;" />
             </div>
@@ -130,6 +157,6 @@
       </main>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js"></script> 
   </body>
-</html>  
+</html>

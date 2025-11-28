@@ -1,115 +1,112 @@
-import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
-import pdf from 'pdf-parse';
-import mammoth from 'mammoth';
-import Busboy from 'busboy';
+import { createClient } from '@supabase/supabase-js';
 
-// Configuração (Pega das variáveis de ambiente da Vercel)
 const supabaseUrl = process.env.SUPABASE_URL;
-// IMPORTANTE: Aqui precisamos da chave Service Role para ter permissão de escrita sem travas
-// Se não tiver a Service Role, tenta usar a Key normal, mas pode dar erro de permissão (RLS)
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY; 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Desativa o bodyParser padrão da Vercel para podermos ler o arquivo (stream)
-export const config = {
-  api: {
-    bodyParser: false, 
-  },
-};
-
 export default async function handler(req, res) {
-  // Apenas aceita método POST
+  // Configuração de segurança (CORS) para permitir que o site converse com o servidor
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader('Access-Control-Allow-Headers', '*'); // Permite todos os cabeçalhos (incluindo nossas chaves)
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const busboy = Busboy({ headers: req.headers });
-  let fileBuffer = null;
-  let fileName = '';
-  let fileType = '';
+  // === 1. VERIFICAÇÃO DE LICENÇA (O PORTEIRO) ===
+  const licenseKey = req.headers['x-license-key'];
+  
+  if (!licenseKey) {
+      return res.status(403).json({ error: 'Licença não fornecida. Insira sua chave de licença.' });
+  }
 
-  // 1. Processar o arquivo recebido (Stream)
-  busboy.on('file', (name, file, info) => {
-    const { filename, mimeType } = info;
-    fileName = filename;
-    fileType = mimeType;
+  // Vai no Supabase ver se essa chave existe e está ativa
+  const { data: licenseData, error: licenseError } = await supabase
+      .from('licenses')
+      .select('active')
+      .eq('key', licenseKey)
+      .single();
 
-    const chunks = [];
-    file.on('data', (data) => chunks.push(data));
-    file.on('end', () => {
-      fileBuffer = Buffer.concat(chunks);
-    });
-  });
+  if (licenseError || !licenseData) {
+      return res.status(403).json({ error: 'Licença Inválida ou Não Encontrada.' });
+  }
 
-  busboy.on('finish', async () => {
-    if (!fileBuffer) {
-      return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-    }
+  if (licenseData.active !== true) {
+      return res.status(403).json({ error: 'ACESSO BLOQUEADO: Sua licença foi suspensa. Contate o suporte.' });
+  }
 
-    try {
-      let textContent = '';
+  // === 2. DEFINIÇÃO DE QUEM PAGA A CONTA (OPENAI) ===
+  const userApiKey = req.headers['x-openai-key'];
+  // Se o cliente mandou chave, usa a dele. Se não, usa a do sistema (se você quiser permitir)
+  const apiKeyToUse = userApiKey && userApiKey.length > 10 ? userApiKey : process.env.OPENAI_API_KEY;
 
-      // 2. Extrair texto baseado no tipo de arquivo
-      if (fileType === 'application/pdf') {
-        const data = await pdf(fileBuffer);
-        textContent = data.text;
-      } else if (
-        fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ) {
-        const result = await mammoth.extractRawText({ buffer: fileBuffer });
-        textContent = result.value;
-      } else {
-        return res.status(400).json({ error: 'Formato não suportado. Use PDF ou DOCX.' });
-      }
+  if (!apiKeyToUse) {
+      return res.status(500).json({ error: 'Nenhuma chave OpenAI configurada. Insira a sua nas configurações.' });
+  }
 
-      // Limpar texto (remove excesso de espaços e quebras de linha estranhas)
-      textContent = textContent.replace(/\s+/g, ' ').trim();
+  const openai = new OpenAI({ apiKey: apiKeyToUse });
+
+  // === 3. LÓGICA DO CHAT (IGUAL ANTES) ===
+  const { messages, profile, useRag } = req.body; 
+
+  try {
+    let systemPrompt = `Você é uma IA interpretando o seguinte perfil: ${profile}.`;
+    
+    // Lógica RAG
+    if (useRag) {
+      const lastUserMessage = messages[messages.length - 1].content;
       
-      if (textContent.length < 50) {
-         return res.status(400).json({ error: 'O arquivo parece vazio ou tem muito pouco texto legível.' });
-      }
-
-      // 3. Dividir texto em pedaços (Chunks) de ~1000 caracteres
-      // Isso é necessário porque a IA não consegue ler um livro inteiro de uma vez
-      const chunkSize = 1000;
-      const chunks = [];
-      for (let i = 0; i < textContent.length; i += chunkSize) {
-        chunks.push(textContent.slice(i, i + chunkSize));
-      }
-
-      // 4. Gerar Vetores (Embeddings) e Salvar no Supabase
-      // Nota: Este código adiciona aos documentos existentes. 
-      // Se quiser limpar a base antes, descomente a linha abaixo:
-      // await supabase.from('documents').delete().neq('id', 0); 
-
-      for (const chunk of chunks) {
-        // Gerar Embedding (Vetor numérico) na OpenAI
+      let queryEmbedding;
+      try {
         const embeddingResponse = await openai.embeddings.create({
           model: 'text-embedding-3-small',
-          input: chunk,
+          input: lastUserMessage,
         });
-        const embedding = embeddingResponse.data[0].embedding;
-
-        // Salvar no Banco de Dados
-        const { error } = await supabase.from('documents').insert({
-          content: chunk,
-          metadata: { fileName },
-          embedding: embedding,
-        });
-
-        if (error) throw error;
+        queryEmbedding = embeddingResponse.data[0].embedding;
+      } catch (embError) {
+        // Se der erro aqui, geralmente é a chave do cliente que está sem saldo ou errada
+        return res.status(401).json({ error: 'Erro OpenAI: Verifique se sua Chave API está correta e tem saldo.' });
       }
 
-      return res.status(200).json({ success: true, message: 'Arquivo processado e memória criada com sucesso!' });
+      const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.2, 
+        match_count: 10       
+      });
 
-    } catch (error) {
-      console.error('Erro no processamento:', error);
-      return res.status(500).json({ error: 'Erro interno ao processar arquivo: ' + error.message });
+      if (supabaseError) {
+          console.error("Erro Supabase:", supabaseError);
+          return res.status(500).json({ error: 'Erro no Banco de Dados.' });
+      }
+
+      if (documents && documents.length > 0) {
+        const contextText = documents.map(doc => doc.content).join('\n---\n');
+        systemPrompt += `\nINSTRUÇÃO RAG: Use o contexto abaixo para responder.\nCONTEXTO: ${contextText}`;
+      } else {
+        systemPrompt += `\n(Aviso: Nada encontrado nos documentos para esta pergunta)`;
+      }
     }
-  });
 
-  req.pipe(busboy);  
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      temperature: 0.5,
+    });
+
+    const reply = completion.choices[0].message.content;
+    res.status(200).json({ reply });
+
+  } catch (error) {
+    if (error.status === 401) return res.status(401).json({ error: 'Chave OpenAI Inválida.' });
+    console.error(error);
+    res.status(500).json({ error: 'Erro interno: ' + error.message });  
+  }
 }
