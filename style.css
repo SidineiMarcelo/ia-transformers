@@ -1,496 +1,508 @@
-/* ===== RESET BÁSICO ===== */
+/* ===== RESET & BASE ===== */
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: radial-gradient(circle at top, #1f2966, #050714);
-  color: #f5f5f5;
-  min-height: 100vh;
+/* Scrollbar Futurista */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #050714; 
+}
+::-webkit-scrollbar-thumb {
+  background: #00f2ff; 
+  border-radius: 4px;
+  box-shadow: 0 0 10px #00f2ff;
 }
 
-/* ===== APP ===== */
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif; /* Fonte limpa */
+  /* Fundo profundo com grade sutil se possível, aqui simulamos com radial */
+  background: radial-gradient(circle at top center, #1a237e, #000000 80%);
+  background-attachment: fixed; /* Fundo fixo ao rolar */
+  color: #e0e6ed;
+  min-height: 100vh;
+  overflow-x: hidden; /* Evita rolagem lateral indesejada */
+}
+
+/* ===== APP CONTAINER ===== */
 .app {
-  max-width: 1200px;
+  max-width: 1400px; /* Um pouco mais largo para telas grandes */
   margin: 0 auto;
-  padding: 16px;
+  padding: 20px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ===== CABEÇALHO ===== */
 .app-header {
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  position: relative;
 }
 
 .app-header h1 {
-  font-size: 1.8rem;
-  letter-spacing: 0.05em;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(0, 242, 255, 0.5); /* Glow no título */
+  margin-bottom: 8px;
 }
 
 .app-subtitle {
-  font-size: 0.9rem;
-  color: #a9b4ff;
-  margin-top: 4px;
+  font-family: 'Courier New', Courier, monospace; /* Fonte técnica */
+  font-size: 0.85rem;
+  color: #00f2ff;
+  letter-spacing: 0.1em;
+  opacity: 0.8;
 }
 
-/* ===== LAYOUT PRINCIPAL ===== */
+/* ===== LAYOUT PRINCIPAL (GRID SYSTEM) ===== */
 .layout {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   align-items: stretch;
+  flex: 1; /* Ocupa altura restante */
 }
 
-/* Colunas base (desktop) */
+/* Painéis Base (Glassmorphism) */
 .col {
-  background: rgba(7, 12, 40, 0.9);
-  border-radius: 16px;
-  padding: 12px;
-  border: 1px solid rgba(88, 130, 255, 0.4);
-  box-shadow: 0 0 20px rgba(88, 130, 255, 0.2);
-}
-
-.col-left {
-  flex: 0 0 260px;
+  background: rgba(10, 15, 30, 0.7); /* Escuro e transparente */
+  backdrop-filter: blur(12px); /* Efeito de vidro fosco */
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(0, 242, 255, 0.15); /* Borda sutil */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); /* Sombra profunda */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  transition: border-color 0.3s ease;
+}
+
+.col:hover {
+  border-color: rgba(0, 242, 255, 0.4); /* Brilha ao passar mouse */
+}
+
+/* Tamanhos das Colunas */
+.col-left {
+  flex: 0 0 280px;
+  gap: 16px;
 }
 
 .col-center {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex: 1; /* O centro expande */
+  gap: 16px;
+  min-width: 0; /* Previne estouro de flex */
 }
 
 .col-right {
-  flex: 0 0 280px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex: 0 0 300px;
+  gap: 12px;
 }
 
-/* ===== HOLOGRAMA (DESIGN MODERNO) ===== */
+/* Títulos dos Painéis */
+h2 {
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #8c9eff;
+  border-bottom: 1px solid rgba(140, 158, 255, 0.2);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+/* ===== HOLOGRAMA (O CSS QUE VOCÊ JÁ TINHA, MANTIDO E REFINADO) ===== */
 .holo-card {
   display: flex;
-  gap: 12px;
-  padding: 10px;
-  border-radius: 14px;
-  background: radial-gradient(circle at top, #2734a2, #090c2d);
-  border: 1px solid rgba(151, 196, 255, 0.6);
-  /* Centraliza no mobile/desktop de forma fluida */
+  gap: 20px;
+  padding: 20px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 242, 255, 0.1);
   align-items: center;
+  position: relative;
+  overflow: hidden;
 }
 
-/* O Contêiner da Cabeça (Anel Externo) */
+/* Efeito de Scanline no fundo do card holográfico */
+.holo-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(rgba(0, 242, 255, 0.03) 50%, transparent 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Contêiner da Cabeça */
 .holo-head {
-  width: 110px; /* Um pouco maior para caber os efeitos */
-  height: 110px;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
-  position: relative; /* Necessário para os anéis giratórios */
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at center, #1a1a2e, #000);
-  
-  /* Sombra externa para profundidade */
-  box-shadow: 
-    0 10px 20px rgba(0, 0, 0, 0.5),
-    inset 0 0 15px rgba(0, 242, 255, 0.1);
-    
-  transition: all 0.3s ease;
-  flex-shrink: 0; /* Garante que não amasse em telas pequenas */
+  background: radial-gradient(circle at center, #050714, #000);
+  box-shadow: 0 0 30px rgba(0, 242, 255, 0.1);
+  flex-shrink: 0;
+  z-index: 1;
 }
 
-/* Anel Giratório Externo (Pseudo-elemento) */
+/* Anéis Giratórios */
 .holo-head::before {
   content: '';
   position: absolute;
-  top: -5px; left: -5px; right: -5px; bottom: -5px;
+  inset: -6px;
   border-radius: 50%;
   border: 2px solid transparent;
-  border-top-color: rgba(0, 242, 255, 0.5); /* Ciano */
-  border-right-color: rgba(140, 0, 255, 0.3); /* Roxo */
+  border-top-color: #00f2ff;
+  border-right-color: rgba(140, 0, 255, 0.5);
   animation: spin 6s linear infinite;
-  z-index: 1;
 }
 
-/* Anel Giratório Interno (Sentido oposto) */
 .holo-head::after {
   content: '';
   position: absolute;
-  top: 5px; left: 5px; right: 5px; bottom: 5px;
+  inset: 4px;
   border-radius: 50%;
   border: 1px solid transparent;
-  border-bottom-color: rgba(0, 242, 255, 0.8);
-  animation: spin-reverse 10s linear infinite;
-  z-index: 1;
+  border-bottom-color: #00f2ff;
+  animation: spin-reverse 8s linear infinite;
 }
 
-/* O Núcleo de Energia (Antiga Face) */
+/* Núcleo de Energia */
 .holo-face {
   width: 60%;
   height: 60%;
   border-radius: 50%;
-  background: linear-gradient(135deg, #00f2ff, #0066ff, #8c00ff);
-  background-size: 200% 200%;
-  position: relative;
-  z-index: 2;
-  
-  /* O BRILHO NEON */
-  box-shadow: 
-    0 0 15px #00f2ff,
-    0 0 30px rgba(0, 102, 255, 0.6);
-    
+  background: linear-gradient(135deg, #00f2ff, #0066ff);
+  box-shadow: 0 0 20px #00f2ff;
   animation: pulse-idle 4s ease-in-out infinite;
+  z-index: 2;
 }
 
-/* Removemos os olhos antigos (dots) para ficar abstrato */
-.holo-face::before,
-.holo-face::after {
-  display: none;
-}
-
-/* ===== ESTADO: FALANDO (.speaking) ===== */
+/* Estado Falando */
 .holo-head.speaking .holo-face {
-  animation: pulse-speaking 1.2s ease-in-out infinite;
-  box-shadow: 
-    0 0 25px #00f2ff,
-    0 0 50px #0066ff,
-    0 0 80px rgba(140, 0, 255, 0.8);
+  animation: pulse-speaking 1s ease-in-out infinite;
+  box-shadow: 0 0 40px #00f2ff, 0 0 60px #8c00ff;
+  background: linear-gradient(135deg, #fff, #00f2ff);
 }
-
 .holo-head.speaking::before {
-  border-top-color: #00f2ff;
-  animation-duration: 2s; /* Gira mais rápido */
+  animation-duration: 2s;
+  border-top-color: #fff;
 }
 
-/* ===== ANIMAÇÕES ===== */
-@keyframes pulse-idle {
-  0%, 100% { transform: scale(0.95); opacity: 0.85; }
-  50% { transform: scale(1.05); opacity: 1; }
-}
-
-@keyframes pulse-speaking {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  25% { transform: scale(1.15); opacity: 1; }
-  50% { transform: scale(0.95); opacity: 0.9; }
-  75% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.8; }
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes spin-reverse {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
-}
-
+/* Informações do Holograma */
 .holo-info {
   flex: 1;
+  z-index: 1;
 }
-
-.holo-info h2 {
-  font-size: 1rem;
+.holo-nome {
+  font-size: 1.2rem;
+  color: #fff;
   margin-bottom: 4px;
 }
-
-.holo-info p {
-  font-size: 0.8rem;
-  color: #c6d4ff;
-}
-
 .holo-status {
-  margin-top: 4px;
-  font-size: 0.75rem;
-  color: #98ffb5;
+  color: #00f2ff;
+  font-family: monospace;
+  font-size: 0.8rem;
 }
 
-/* ===== STATUS BAR ===== */
+/* ===== MENSAGENS E CHAT ===== */
 .status-bar {
-  font-size: 0.85rem;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(23, 34, 76, 0.9);
-  border: 1px solid rgba(115, 151, 255, 0.6);
+  font-family: 'Courier New', monospace;
+  font-size: 0.8rem;
+  color: #00f2ff;
+  background: rgba(0, 242, 255, 0.05);
+  padding: 8px 12px;
+  border-left: 3px solid #00f2ff;
+  margin-bottom: 10px;
 }
 
-/* ===== MENSAGENS ===== */
 .mensagens {
-  flex: 1 1 auto;
-  min-height: 150px;
-  max-height: 320px;
+  flex: 1;
+  min-height: 250px;
+  max-height: 400px;
   overflow-y: auto;
-  padding: 10px;
-  border-radius: 10px;
-  background: rgba(6, 9, 30, 0.95);
-  border: 1px solid rgba(66, 106, 255, 0.6);
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .msg {
-  margin-bottom: 8px;
-  padding: 6px 8px;
+  padding: 10px 14px;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  position: relative;
+  max-width: 90%;
+}
+
+.msg.usuario {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.05));
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  color: #dcedc8;
+  border-bottom-right-radius: 0;
+}
+
+.msg.ia {
+  align-self: flex-start;
+  background: linear-gradient(135deg, rgba(0, 242, 255, 0.15), rgba(0, 102, 255, 0.05));
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  color: #e0f7fa;
+  border-bottom-left-radius: 0;
 }
 
 .msg strong {
   display: block;
-  margin-bottom: 2px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+  opacity: 0.7;
+  text-transform: uppercase;
 }
 
-.msg.usuario {
-  background: rgba(76, 175, 80, 0.12);
-  border-left: 3px solid #76ff83;
+/* ===== INPUTS E CONTROLES (ESTILO HUD) ===== */
+.campo-label {
+  font-size: 0.75rem;
+  color: #8c9eff;
+  text-transform: uppercase;
+  margin: 8px 0 4px;
+  letter-spacing: 0.05em;
 }
 
-.msg.ia {
-  background: rgba(63, 81, 181, 0.16);
-  border-left: 3px solid #8ab4ff;
-}
-
-/* ===== ENTRADA DE TEXTO ===== */
-.entrada-container {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
+.campo-input,
+.campo-textarea,
+select,
 #entradaTexto {
   width: 100%;
-  min-height: 60px;
-  max-height: 110px;
-  resize: vertical;
-  border-radius: 8px;
-  border: 1px solid rgba(88, 130, 255, 0.7);
-  background: rgba(6, 9, 25, 0.96);
-  color: #f5f5f5;
-  padding: 8px;
+  background: rgba(5, 7, 20, 0.8);
+  border: 1px solid rgba(88, 130, 255, 0.3);
+  color: #fff;
+  padding: 12px;
+  border-radius: 4px; /* Mais quadrado, mais técnico */
+  font-family: inherit;
   font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.campo-input:focus,
+.campo-textarea:focus,
+#entradaTexto:focus,
+select:focus {
+  outline: none;
+  border-color: #00f2ff;
+  box-shadow: 0 0 10px rgba(0, 242, 255, 0.2);
+  background: rgba(5, 7, 20, 1);
+}
+
+.campo-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+/* Área de input do chat */
+.entrada-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto; /* Empurra para o fundo se houver espaço */
+}
+
+/* Botões Tech */
+.btn {
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px; /* Bordas técnicas */
+  cursor: pointer;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn.full { width: 100%; }
+
+.btn.primario {
+  background: linear-gradient(90deg, #00c6ff, #0072ff);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+}
+.btn.primario:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(0, 198, 255, 0.6);
+}
+
+.btn.secundario {
+  background: transparent;
+  border: 1px solid rgba(0, 242, 255, 0.5);
+  color: #00f2ff;
+}
+.btn.secundario:hover:not(:disabled) {
+  background: rgba(0, 242, 255, 0.1);
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.2);
+}
+
+.btn.perigo {
+  background: transparent;
+  border: 1px solid rgba(255, 50, 50, 0.5);
+  color: #ff5252;
+}
+.btn.perigo:hover:not(:disabled) {
+  background: rgba(255, 50, 50, 0.1);
+  box-shadow: 0 0 15px rgba(255, 50, 50, 0.3);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }
 
 .botoes-chat {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+}
+.botoes-chat .btn {
+  flex: 1; /* Botões dividem espaço igualmente */
+  min-width: 120px; /* Evita ficarem minúsculos */
 }
 
-/* ===== LISTA DE TRANSFORMERS ===== */
-.col-left h2,
-.col-right h2 {
-  font-size: 1rem;
-  margin-bottom: 6px;
-}
-
+/* Lista de Transformers */
 .lista-transformers {
-  flex: 1 1 auto;
-  border-radius: 10px;
-  background: rgba(5, 8, 30, 0.95);
-  border: 1px solid rgba(88, 130, 255, 0.6);
-  padding: 6px;
+  flex: 1;
   overflow-y: auto;
-  max-height: 340px;
+  padding-right: 4px;
 }
-
-.lista-vazia {
-  font-size: 0.85rem;
-  color: #9ea8ff;
-  text-align: center;
-  padding: 10px;
-}
-
 .transformer-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  margin-bottom: 6px;
-  border-radius: 8px;
-  background: rgba(11, 18, 55, 0.9);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 0 4px 4px 0;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.15s ease;
+  transition: all 0.2s;
 }
-
 .transformer-item:hover {
-  background: rgba(23, 39, 96, 1);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
+  padding-left: 14px; /* Efeito de deslize */
 }
-
 .transformer-item.active {
-  border: 1px solid #76ff83;
-  box-shadow: 0 0 12px rgba(118, 255, 131, 0.5);
+  border-color: #00f2ff;
+  border-left: 3px solid #00f2ff;
+  background: linear-gradient(90deg, rgba(0, 242, 255, 0.1), transparent);
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.1);
 }
-
-.transformer-meta {
-  flex: 1 1 auto;
-}
-
-.transformer-name {
-  display: block;
-  font-weight: bold;
-  font-size: 0.88rem;
-}
-
-.transformer-sub {
-  font-size: 0.75rem;
-  color: #aab3ff;
-}
+.transformer-name { display: block; font-weight: bold; color: #fff; }
+.transformer-sub { font-size: 0.75rem; color: #8c9eff; }
 
 .transformer-actions {
   display: flex;
-  flex-direction: column;
   gap: 4px;
+  margin-top: 6px;
 }
-
-/* ===== CAMPOS E BOTÕES ===== */
-.campo-label {
-  font-size: 0.8rem;
-  margin-top: 4px;
-  margin-bottom: 2px;
-  display: block;
-}
-
-.campo-input,
-.campo-textarea,
-select {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid rgba(88, 130, 255, 0.8);
-  background: rgba(6, 9, 25, 0.96);
-  color: #f5f5f5;
-  padding: 6px 8px;
-  font-size: 0.85rem;
-}
-
-.campo-textarea {
-  min-height: 120px;
-  resize: vertical;
-}
-
-.btn {
-  border: none;
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 0.85rem;
+.transformer-actions button {
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 3px;
   cursor: pointer;
-  transition: background 0.2s ease, transform 0.1s ease,
-    box-shadow 0.2s ease;
-  white-space: nowrap;
+}
+.transformer-actions button:hover {
+  border-color: #00f2ff;
+  color: #00f2ff;
 }
 
-.btn.full {
-  width: 100%;
-  text-align: center;
-}
+/* ===== ANIMAÇÕES ===== */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes spin-reverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes pulse-idle { 0%, 100% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } }
+@keyframes pulse-speaking { 0%, 100% { transform: scale(0.9); } 50% { transform: scale(1.1); } }
 
-.btn.primario {
-  background: linear-gradient(135deg, #4c8dff, #7b5bff);
-  color: #ffffff;
-  box-shadow: 0 0 12px rgba(106, 142, 255, 0.8);
-}
+/* ===== RESPONSIVIDADE AVANÇADA ===== */
 
-.btn.primario:hover {
-  box-shadow: 0 0 18px rgba(106, 142, 255, 1);
-  transform: translateY(-1px);
-}
-
-.btn.secundario {
-  background: rgba(19, 30, 80, 0.9);
-  color: #d0d6ff;
-  border: 1px solid rgba(108, 139, 255, 0.9);
-}
-
-.btn.secundario:hover {
-  background: rgba(30, 47, 115, 1);
-}
-
-.btn.perigo {
-  background: rgba(180, 45, 65, 0.9);
-  color: #ffe9ea;
-  border: 1px solid rgba(255, 138, 157, 0.9);
-}
-
-.btn.perigo:hover {
-  background: rgba(210, 64, 86, 1);
-}
-
-/* ===== RESPONSIVIDADE ===== */
-
-/* Tablets: apertar um pouco as colunas */
+/* Tablet (Modo Retrato) e Laptops pequenos */
 @media (max-width: 1024px) {
-  .app {
-    max-width: 100%;
-    padding: 12px;
-  }
-
-  .col-left {
-    flex: 0 0 230px;
-  }
-
-  .col-right {
-    flex: 0 0 250px;
-  }
-
-  .holo-card {
-    flex-direction: row;
-  }
+  .app { padding: 10px; }
+  .col-left { flex: 0 0 240px; }
+  .col-right { flex: 0 0 240px; }
 }
 
-/* Celular: empilhar colunas em coluna única */
+/* Mobile e Tablets pequenos (Stack Vertical) */
 @media (max-width: 900px) {
   .layout {
-    flex-direction: column;
+    flex-direction: column; /* Empilha tudo */
+    gap: 20px;
   }
 
-  .col-left,
-  .col-center,
-  .col-right {
-    flex: 1 1 auto;
+  .col {
+    width: 100%;
+    flex: none; /* Remove comportamento de flex-grow padrão para evitar bugs de altura */
   }
 
+  /* Ajuste da altura no mobile para não ocupar tela toda em listas */
   .lista-transformers {
-    max-height: 220px;
+    max-height: 200px; 
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* O chat deve ter prioridade visual */
+  .col-center {
+    order: -1; /* Joga o chat para o topo no mobile */
   }
 
   .mensagens {
-    max-height: 220px;
-  }
-
-  .holo-card {
-    flex-direction: row;
-  }
-}
-
-/* Celular pequeno */
-@media (max-width: 600px) {
-  .app {
-    padding: 8px;
-  }
-
-  .app-header h1 {
-    font-size: 1.4rem;
+    max-height: 300px; /* Limita altura para caber teclado */
   }
 
   .holo-card {
     flex-direction: column;
-    align-items: center;
     text-align: center;
   }
 
-  .botoes-chat {
-    flex-direction: column;
+  .holo-info {
+    margin-top: 10px;
   }
+}
 
-  .transformer-actions {
-    flex-direction: row;    
+/* Celulares Pequenos (iPhone SE, etc) */
+@media (max-width: 480px) {
+  .app-header h1 { font-size: 1.5rem; }
+  
+  .botoes-chat .btn {
+    width: 100%; /* Botões ocupam largura total para facilitar o toque */
+    margin-bottom: 4px;
+  }
+  
+  .transformer-actions button {
+    padding: 8px 12px; /* Botões maiores para dedo */
+  }
+  
+  /* Ajuste para evitar que o teclado cubra o input */
+  .entrada-container {
+    position: sticky;
+    bottom: 0;
+    background: #0b1026; /* Fundo sólido para input legível sobre conteúdo */
+    padding: 10px 0;
+    z-index: 10;  
   }
 }
