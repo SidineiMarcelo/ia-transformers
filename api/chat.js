@@ -5,14 +5,14 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABAS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
-  // CORS
+  // Configurações de CORS e Método
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
 
-  // 1. Segurança e Chaves
+  // 1. SEGURANÇA E CHAVES
   const licenseKey = req.headers['x-license-key'];
   if (!licenseKey) return res.status(403).json({ error: 'Licença ausente.' });
 
@@ -20,7 +20,6 @@ export default async function handler(req, res) {
   if (!license?.active) return res.status(403).json({ error: 'Licença bloqueada.' });
 
   const userApiKey = req.headers['x-google-key'];
-  // Usa chave do cliente ou a do sistema
   const apiKey = userApiKey && userApiKey.length > 10 ? userApiKey : process.env.GEMINI_API_KEY;
   
   if (!apiKey) return res.status(500).json({ error: 'Falta Chave Google Gemini.' });
@@ -30,7 +29,6 @@ export default async function handler(req, res) {
   try {
     const nomeIA = name || "Assistente Transformers";
     
-    // Instrução de Sistema (Persona + Modo Professor)
     let systemInstruction = `
     IDENTIDADE: Você é "${nomeIA}", uma IA de Treinamento Corporativo Avançado.
     PERFIL: ${profile}.
@@ -38,11 +36,11 @@ export default async function handler(req, res) {
     TAREFA EXTRA (QUIZ): Se o usuário pedir um "Quiz", "Prova" ou "Teste", gere 3 perguntas de múltipla escolha difíceis baseadas no conhecimento que você tem. No final, mostre o gabarito.
     `;
 
-    // 2. RAG (Busca Documental com Embeddings Google)
+    // 2. RAG (Busca Documental)
     if (useRag) {
         const lastMsg = messages[messages.length - 1].content;
         
-        // Gerar vetor da pergunta
+        // Gerar vetor da pergunta (Embedding Google)
         const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -64,18 +62,16 @@ export default async function handler(req, res) {
         }
     }
 
-    // 3. Montagem do Prompt Multimodal para o Gemini
+    // 3. Montagem do Prompt Multimodal
     const contents = messages.map(m => ({
         role: m.role === 'user' ? 'user' : 'model',
         parts: [{ text: m.content }]
     }));
 
-    // Se tiver Mídia (Vídeo ou Imagem), anexa na última mensagem
     if (mediaData && mediaType) {
         const base64Clean = mediaData.split(',')[1] || mediaData;
         const lastMsgIndex = contents.length - 1;
         
-        // Adiciona a imagem/vídeo ao payload
         contents[lastMsgIndex].parts.push({
             inline_data: {
                 mime_type: mediaType, 
@@ -85,8 +81,10 @@ export default async function handler(req, res) {
         systemInstruction += `\n\n[SISTEMA]: O usuário anexou um arquivo visual (${mediaType}). Analise-o detalhadamente.`;
     }
 
-    // 4. Chamada à API do Gemini (Flash 1.5 - Rápido e Multimodal)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // 4. Chamada à API do Gemini (CORREÇÃO DE MODELO)
+    // O nome 'gemini-1.5-flash-latest' é o mais estável para evitar o erro "not found"
+    const modelVersion = "gemini-1.5-flash-latest"; 
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelVersion}:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
         method: 'POST',
@@ -103,6 +101,7 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
         const errData = await response.json();
+        console.error("Erro Gemini:", errData);
         throw new Error(errData.error?.message || "Erro na API Gemini");
     }
 
@@ -115,4 +114,4 @@ export default async function handler(req, res) {
     console.error(error);
     res.status(500).json({ error: error.message });
   }
-}   
+}    
