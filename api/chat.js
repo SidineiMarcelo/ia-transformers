@@ -7,7 +7,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export default async function handler(req, res) {
   // Configurações de CORS e Método
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*'); 
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     // 4. Chamada à API do Gemini (CORREÇÃO DE MODELO)
     // O nome 'gemini-1.5-flash-latest' é o mais estável para evitar o erro "not found"
-    const modelVersion = "gemini-2.5-flash"; 
+    const modelVersion = "gemini-1.5-pro"; 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelVersion}:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
