@@ -1,6 +1,6 @@
 /**
- * IA TRANSFORMERS – SCRIPT PRINCIPAL (V3.2)
- * Suporte: Texto, Voz (Navegador), Imagem, Vídeo, Quiz, RAG, Agentes
+ * IA TRANSFORMERS – SCRIPT PRINCIPAL (V4.0)
+ * Suporte: Texto, Voz Gemini TTS, Imagem, Vídeo, Quiz, RAG e Agentes.
  */
 
 class VoiceAssistant {
@@ -11,14 +11,12 @@ class VoiceAssistant {
         this.conversationActive = false;
         this.silenceTimer = null;
 
-        // Mídia anexada
         this.currentMedia = {
             data: null,
             mimeType: null,
             type: null
         };
 
-        // Elementos da interface
         this.ui = {
             holoHead: document.getElementById("holo-head"),
             statusText: document.getElementById("holo-status-text"),
@@ -36,22 +34,25 @@ class VoiceAssistant {
             videoInput: document.getElementById("chatVideoInput"),
             btnQuiz: document.getElementById("btnQuiz"),
             mediaPreview: document.getElementById("mediaPreview"),
-            mediaName: document.getElementById("mediaName"),
+            mediaName: document.getElementById("mediaName")
         };
 
         this.init();
     }
 
+    // -------------------------------------------------------
+    // INICIALIZAÇÃO
+    // -------------------------------------------------------
     init() {
         this.setupRecognition();
         this.loadSettings();
         this.bindEvents();
-        console.log("🔥 IA Transformers iniciado com sucesso.");
+        console.log("🚀 IA Transformers iniciado.");
     }
 
-    // ------------------------------------------
-    // 🔊 1. RECONHECIMENTO DE VOZ
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // RECONHECIMENTO DE VOZ
+    // -------------------------------------------------------
     setupRecognition() {
         if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -61,25 +62,29 @@ class VoiceAssistant {
             this.recognition.interimResults = true;
 
             this.recognition.onstart = () => this.updateStatus("Ouvindo...", "listening");
+
             this.recognition.onend = () => {
                 if (this.conversationActive && !this.isSpeaking) {
-                    try { this.recognition.start(); } catch(e){}
+                    try { this.recognition.start(); } catch (e) {}
                 } else {
-                    this.updateStatus("Ocioso", "idle");
+                    this.updateStatus("Aguardando...", "idle");
                 }
             };
-            this.recognition.onresult = (e) => this.handleVoiceInput(e);
+
+            this.recognition.onresult = (evt) => this.handleVoiceInput(evt);
+
         } else {
-            this.ui.btnStart.textContent = "❌ Sem Microfone";
             this.ui.btnStart.disabled = true;
+            this.ui.btnStart.textContent = "❌ Sem Microfone";
         }
     }
 
-    // ------------------------------------------
-    // 🔧 2. EVENTOS
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // EVENTOS
+    // -------------------------------------------------------
     bindEvents() {
         this.ui.btnSend.addEventListener("click", () => this.sendMessage());
+
         this.ui.input.addEventListener("keydown", (e) => {
             if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -90,15 +95,22 @@ class VoiceAssistant {
         this.ui.btnStart.addEventListener("click", () => this.startConversation());
         this.ui.btnStop.addEventListener("click", () => this.stopConversation());
 
-        this.ui.imgInput.addEventListener("change", (e) => this.handleFileSelect(e, 'image'));
-        this.ui.videoInput.addEventListener("change", (e) => this.handleFileSelect(e, 'video'));
+        this.ui.imgInput.addEventListener("change", (e) => this.handleFileSelect(e, "image"));
+        this.ui.videoInput.addEventListener("change", (e) => this.handleFileSelect(e, "video"));
 
         this.ui.btnQuiz.addEventListener("click", () => this.triggerQuiz());
 
-        document.getElementById("btnUpload")?.addEventListener("click", () => this.handleDocUpload());
+        document.getElementById("btnUpload")?.addEventListener("click", () =>
+            this.handleDocUpload()
+        );
 
-        this.ui.keys.license.addEventListener("input", (e) => localStorage.setItem("ia_license_key", e.target.value));
-        this.ui.keys.google.addEventListener("input", (e) => localStorage.setItem("ia_google_key", e.target.value));
+        this.ui.keys.license.addEventListener("input", (e) =>
+            localStorage.setItem("ia_license_key", e.target.value)
+        );
+
+        this.ui.keys.google.addEventListener("input", (e) =>
+            localStorage.setItem("ia_google_key", e.target.value)
+        );
 
         window.limparMedia = () => {
             this.currentMedia = { data: null, mimeType: null, type: null };
@@ -107,105 +119,111 @@ class VoiceAssistant {
             this.ui.videoInput.value = "";
         };
 
-        // Salvar / carregar agentes
-        document.getElementById("salvarTransformerBtn")?.addEventListener("click", () => this.saveTransformer());
-        document.getElementById("limparTransformerBtn")?.addEventListener("click", () => this.clearTransformerForm());
-        document.getElementById("limparListaBtn")?.addEventListener("click", () => this.clearTransformerList());
+        // Agentes
+        document.getElementById("salvarTransformerBtn")?.addEventListener("click", () =>
+            this.saveTransformer()
+        );
+        document.getElementById("limparTransformerBtn")?.addEventListener("click", () =>
+            this.clearTransformerForm()
+        );
+        document.getElementById("limparListaBtn")?.addEventListener("click", () =>
+            this.clearTransformerList()
+        );
     }
 
-    // ------------------------------------------
-    // 🎤 3. CONVERSAÇÃO
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // CONVERSAÇÃO ATIVA
+    // -------------------------------------------------------
     startConversation() {
         if (!this.validateLicense()) return;
         this.conversationActive = true;
         this.updateUIState();
         this.updateStatus("Ouvindo...", "listening");
-        try { this.recognition.start(); } catch(e){}
+        try { this.recognition.start(); } catch (e) {}
     }
 
     stopConversation() {
         this.conversationActive = false;
         this.updateUIState();
         this.updateStatus("Pronto.", "idle");
-        try { this.recognition.stop(); } catch(e){}
+        try { this.recognition.stop(); } catch (e) {}
         this.stopAudio();
     }
 
-    // ------------------------------------------
-    // 🖼️ 4. MÍDIA (IMAGEM / VÍDEO)
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // MÍDIA (IMAGEM / VÍDEO)
+    // -------------------------------------------------------
     handleFileSelect(event, type) {
         const file = event.target.files[0];
         if (!file) return;
 
         if (file.size > 4 * 1024 * 1024) {
-            alert("O arquivo excede 4MB. Use arquivos menores.");
+            alert("⚠️ Arquivo maior que 4MB. Reduza o tamanho.");
             return;
         }
 
         const reader = new FileReader();
+
         reader.onloadend = () => {
             this.currentMedia = {
                 data: reader.result,
                 mimeType: file.type,
                 type
             };
+
             this.ui.mediaPreview.style.display = "block";
-            this.ui.mediaName.textContent = `${type === 'video' ? '🎥' : '📷'} ${file.name}`;
+            this.ui.mediaName.textContent = `${type === "video" ? "🎥" : "📷"} ${file.name}`;
         };
 
         reader.readAsDataURL(file);
     }
 
-    // ------------------------------------------
-    // 📝 5. QUIZ AUTOMÁTICO
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // QUIZ AUTOMÁTICO
+    // -------------------------------------------------------
     triggerQuiz() {
         if (!this.validateLicense()) return;
 
-        const promptQuiz = "Crie uma prova técnica com 3 perguntas de múltipla escolha e gabarito ao final.";
-        this.addMessage("user", "📝 Solicitando Quiz...");
+        const promptQuiz = "Gere uma prova com 3 perguntas de múltipla escolha e gabarito.";
+        this.addMessage("user", "📝 Solicitando prova...");
+
         this.updateStatus("Gerando Quiz...", "thinking");
 
         this.sendPayload(promptQuiz);
     }
 
-    // ------------------------------------------
-    // 💬 6. ENVIO DE MENSAGEM
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // ENVIO DE TEXTO
+    // -------------------------------------------------------
     async sendMessage() {
         const text = this.ui.input.value.trim();
-
         if (!text && !this.currentMedia.data) return;
         if (!this.validateLicense()) return;
 
-        this.stopAudio();
+        let exibicao = text;
 
-        let show = text;
         if (this.currentMedia.data) {
             if (this.currentMedia.type === "image") {
-                show += `<br><img src="${this.currentMedia.data}" style="max-width:150px; border-radius:8px;">`;
+                exibicao += `<br><img src="${this.currentMedia.data}" style="max-width:150px;border-radius:8px;">`;
             } else {
-                show += `<br>🎥 Vídeo enviado`;
+                exibicao += `<br>🎥 Vídeo enviado.`;
             }
         }
 
-        this.addMessage("user", show);
+        this.addMessage("user", exibicao);
         this.ui.input.value = "";
-
-        this.updateStatus("Gemini analisando...", "thinking");
+        this.updateStatus("Pensando...", "thinking");
 
         this.sendPayload(text);
     }
 
-    // ------------------------------------------
-    // 📤 7. ENVIO PARA BACKEND
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // ENVIO PARA O /api/chat
+    // -------------------------------------------------------
     async sendPayload(text) {
-        const messages = this.getHistory();
+        const history = this.getHistory();
         const profile = document.getElementById("perfil")?.value || "";
-        const name = document.getElementById("transformerNome")?.value || "";
+        const nome = document.getElementById("transformerNome")?.value || "";
         const useRag = this.ui.ragCheck?.checked || false;
 
         try {
@@ -216,123 +234,143 @@ class VoiceAssistant {
                     ...this.getAuthHeaders()
                 },
                 body: JSON.stringify({
-                    messages,
+                    messages: history,
                     profile,
-                    name,
+                    name: nome,
                     useRag,
-                    mediaData:    this.currentMedia.data,
-                    mediaType:    this.currentMedia.mimeType
-                }),
+                    mediaData: this.currentMedia.data,
+                    mediaType: this.currentMedia.mimeType
+                })
             });
 
             window.limparMedia();
 
-            const data = await resp.json();
-            if (!resp.ok) throw new Error(data.error || "Erro desconhecido");
+            const result = await resp.json();
 
-            const reply = data.reply || "Não consegui gerar resposta.";
+            if (!resp.ok) throw new Error(result.error);
+
+            const reply = result.reply || "Não entendi.";
+
             this.addMessage("ia", reply);
+            window.ultimaRespostaIA = reply;
 
             if (this.conversationActive) this.speak(reply);
-            else this.updateStatus("Pronto", "idle");
+            else this.updateStatus("Pronto.", "idle");
 
         } catch (e) {
-            this.addMessage("ia", "❌ " + e.message);
+            this.addMessage("ia", `❌ ${e.message}`);
             this.updateStatus("Erro", "idle");
         }
     }
 
-    // ------------------------------------------
-    // 🔊 8. TTS (NAVEGADOR) – SEM GEMINI
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // TTS GEMINI – VOZ HUMANIZADA
+    // -------------------------------------------------------
     async speak(text) {
         if (!text) return;
 
-        // Limpa emojis e pontuação que a voz ficava lendo
-        let clean = text
-            .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}]/gu, "")
-            .replace(/\.{2,}/g, ".")
-            .replace(/[!?;><]/g, "")
-            .trim();
-
-        if (!clean) clean = text;
-
         this.isSpeaking = true;
         this.updateStatus("Falando...", "speaking");
+        try { this.recognition?.stop(); } catch (e) {}
 
-        try { this.recognition?.stop(); } catch(e){}
+        const voiceKey = document.getElementById("vozSelect")?.value || "shimmer";
 
-        const utter = new SpeechSynthesisUtterance(clean);
-        utter.lang = "pt-BR";
+        try {
+            const resp = await fetch("/api/tts", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...this.getAuthHeaders()
+                },
+                body: JSON.stringify({
+                    text,
+                    voice: voiceKey
+                })
+            });
 
-        // Tenta aplicar vozes diferentes
-        const voices = speechSynthesis.getVoices();
-        const ptVoices = voices.filter(v => v.lang?.startsWith("pt"));
-
-        const selected = document.getElementById("vozSelect").value;
-        const map = { shimmer:0, nova:1, onyx:2, echo:3, alloy:4 };
-
-        if (ptVoices.length > 0) {
-            const index = map[selected] ?? 0;
-            utter.voice = ptVoices[Math.min(index, ptVoices.length - 1)];
-        }
-
-        utter.pitch = 1;
-        utter.rate  = 1;
-
-        utter.onend = () => {
-            this.isSpeaking = false;
-            if (this.conversationActive) {
-                try { this.recognition.start(); } catch(e){}
-                this.updateStatus("Ouvindo...", "listening");
-            } else {
-                this.updateStatus("Pronto", "idle");
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || "Erro TTS");
             }
-        };
 
-        speechSynthesis.speak(utter);
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+
+            this.stopAudio();
+
+            this.audioPlayer = new Audio(url);
+
+            this.audioPlayer.onended = () => {
+                URL.revokeObjectURL(url);
+                this.audioPlayer = null;
+                this.isSpeaking = false;
+
+                if (this.conversationActive) {
+                    try { this.recognition.start(); } catch (e) {}
+                    this.updateStatus("Ouvindo...", "listening");
+                } else {
+                    this.updateStatus("Pronto.", "idle");
+                }
+            };
+
+            await this.audioPlayer.play();
+
+        } catch (e) {
+            console.error(e);
+            this.updateStatus("Erro na voz", "idle");
+            this.isSpeaking = false;
+        }
     }
 
     stopAudio() {
-        try { speechSynthesis.cancel(); } catch(e){}
+        if (this.audioPlayer) {
+            this.audioPlayer.pause();
+            this.audioPlayer.currentTime = 0;
+            this.audioPlayer = null;
+        }
+
+        try { speechSynthesis.cancel(); } catch (e) {}
+
         this.isSpeaking = false;
     }
 
-    // ------------------------------------------
-    // 🧠 9. HISTÓRICO
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // HISTÓRICO
+    // -------------------------------------------------------
     addMessage(role, text) {
         const div = document.createElement("div");
         div.classList.add("msg", role === "user" ? "usuario" : "ia");
-        div.innerHTML = `<strong>${role === "user" ? "Você" : "IA"}</strong> ${text}`;
+        div.innerHTML = `<strong>${role === "user" ? "Você" : "IA"}:</strong> ${text}`;
         this.ui.mensagens.appendChild(div);
         this.ui.mensagens.scrollTop = this.ui.mensagens.scrollHeight;
     }
 
     getHistory() {
-        return Array.from(this.ui.mensagens.children).map(msg => ({
-            role: msg.classList.contains("usuario") ? "user" : "assistant",
-            content: msg.innerText.replace(/^(Você|IA)\s/, "")
+        return Array.from(this.ui.mensagens.children).map(m => ({
+            role: m.classList.contains("usuario") ? "user" : "assistant",
+            content: m.innerText.replace(/^(Você|IA):\s*/, "")
         })).slice(-12);
     }
 
-    handleVoiceInput(event) {
+    handleVoiceInput(evt) {
         let txt = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i].isFinal) txt += event.results[i][0].transcript;
+
+        for (let i = evt.resultIndex; i < evt.results.length; i++) {
+            if (evt.results[i].isFinal) txt += evt.results[i][0].transcript;
         }
 
         if (txt) this.ui.input.value = txt;
 
         clearTimeout(this.silenceTimer);
+
         if (txt.trim() && this.conversationActive) {
             this.silenceTimer = setTimeout(() => this.sendMessage(), 1800);
         }
     }
 
-    // ------------------------------------------
-    // 📁 10. RAG – PDF/DOCX
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // UPLOAD / RAG
+    // -------------------------------------------------------
     async handleDocUpload() {
         const file = document.getElementById("arquivoInput").files[0];
         if (!file) return alert("Selecione um arquivo.");
@@ -344,8 +382,8 @@ class VoiceAssistant {
 
         btn.textContent = "Processando...";
         btn.disabled = true;
-        status.textContent = "Lendo documento...";
         status.className = "upload-status loading";
+        status.textContent = "Lendo documento...";
 
         try {
             const fd = new FormData();
@@ -358,10 +396,12 @@ class VoiceAssistant {
             });
 
             const data = await resp.json();
+
             if (!resp.ok) throw new Error(data.error);
 
-            status.textContent = "📚 Memória criada!";
+            status.textContent = "📚 Conhecimento adicionado!";
             status.className = "upload-status success";
+
             this.ui.ragCheck.checked = true;
 
         } catch (e) {
@@ -373,16 +413,9 @@ class VoiceAssistant {
         btn.disabled = false;
     }
 
-    // ------------------------------------------
-    // 🛡️ 11. LICENÇA & CONFIG
-    // ------------------------------------------
-    getAuthHeaders() {
-        return {
-            "x-license-key": this.ui.keys.license.value.trim(),
-            "x-google-key": this.ui.keys.google.value.trim()
-        };
-    }
-
+    // -------------------------------------------------------
+    // VALIDAR LICENÇA
+    // -------------------------------------------------------
     validateLicense() {
         if (!this.ui.keys.license.value.trim()) {
             alert("Insira sua licença.");
@@ -391,13 +424,24 @@ class VoiceAssistant {
         return true;
     }
 
-    updateStatus(text, state) {
-        this.ui.statusText.textContent = text;
+    getAuthHeaders() {
+        return {
+            "x-license-key": this.ui.keys.license.value.trim(),
+            "x-google-key": this.ui.keys.google.value.trim()
+        };
+    }
 
-        if (state === "speaking")
+    // -------------------------------------------------------
+    // STATUS + UI
+    // -------------------------------------------------------
+    updateStatus(msg, state) {
+        this.ui.statusText.textContent = msg;
+
+        if (state === "speaking") {
             this.ui.holoHead.classList.add("speaking");
-        else
+        } else {
             this.ui.holoHead.classList.remove("speaking");
+        }
     }
 
     updateUIState() {
@@ -405,9 +449,9 @@ class VoiceAssistant {
         this.ui.btnStop.disabled = !this.conversationActive;
     }
 
-    // ------------------------------------------
-    // 🧩 12. AGENTES – SALVAR / CARREGAR
-    // ------------------------------------------
+    // -------------------------------------------------------
+    // AGENTES (SALVAR / CARREGAR)
+    // -------------------------------------------------------
     loadSettings() {
         this.ui.keys.license.value = localStorage.getItem("ia_license_key") || "";
         this.ui.keys.google.value = localStorage.getItem("ia_google_key") || "";
@@ -416,10 +460,12 @@ class VoiceAssistant {
 
     loadTransformers() {
         try {
-            window.transformersSalvos = JSON.parse(localStorage.getItem("ia_transformers_lista")) || [];
+            window.transformersSalvos =
+                JSON.parse(localStorage.getItem("ia_transformers_lista")) || [];
         } catch {
             window.transformersSalvos = [];
         }
+
         this.renderTransformers();
     }
 
@@ -428,18 +474,20 @@ class VoiceAssistant {
         const perfil = document.getElementById("perfil").value.trim();
         const voz = document.getElementById("vozSelect").value;
 
-        if (!nome) return alert("Escolha um nome para salvar.");
+        if (!nome) return alert("Escolha um nome.");
 
         const lista = window.transformersSalvos;
-        const idx = lista.findIndex(t => t.nome === nome);
+        const idx = lista.findIndex((t) => t.nome === nome);
+
         const obj = { nome, perfil, voz };
 
         if (idx >= 0) lista[idx] = obj;
         else lista.push(obj);
 
         localStorage.setItem("ia_transformers_lista", JSON.stringify(lista));
+
         this.renderTransformers();
-        this.updateStatus("Agente salvo.", "idle");
+        this.updateStatus("Agente salvo!", "idle");
     }
 
     clearTransformerForm() {
@@ -451,9 +499,11 @@ class VoiceAssistant {
 
     clearTransformerList() {
         if (!confirm("Tem certeza?")) return;
+
         localStorage.removeItem("ia_transformers_lista");
         window.transformersSalvos = [];
         this.renderTransformers();
+
         this.updateStatus("Lista apagada.", "idle");
     }
 
@@ -461,24 +511,25 @@ class VoiceAssistant {
         const area = document.getElementById("listaTransformers");
         area.innerHTML = "";
 
-        window.transformersSalvos.forEach(t => {
+        window.transformersSalvos.forEach((t) => {
             const div = document.createElement("div");
             div.className = "transformer-item";
             div.textContent = t.nome;
+
             div.onclick = () => {
                 document.getElementById("transformerNome").value = t.nome;
                 document.getElementById("perfil").value = t.perfil;
                 document.getElementById("vozSelect").value = t.voz;
                 this.updateStatus("Agente carregado.", "idle");
             };
+
             area.appendChild(div);
         });
     }
 }
 
-// Inicializa tudo
+// Inicializa
 window.addEventListener("DOMContentLoaded", () => {
-    window.assistant = new VoiceAssistant();  
+    window.assistant = new VoiceAssistant();
+    speechSynthesis.getVoices(); // Força carregamento de vozes 
 });
-
-window.transformersSalvos = [];
