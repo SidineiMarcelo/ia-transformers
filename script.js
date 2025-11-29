@@ -11,9 +11,9 @@ class VoiceAssistant {
         this.conversationActive = false;
         this.silenceTimer = null;
 
-        // Armazena dados da mídia atual (Imagem ou Vídeo)
+        // Armazena dados da mídia atual
         this.currentMedia = {
-            data: null, // Base64
+            data: null,
             mimeType: null,
             type: null // 'image' ou 'video'
         };
@@ -48,7 +48,7 @@ class VoiceAssistant {
         console.log("✅ Sistema Gemini Enterprise Iniciado");
     }
 
-    // --- 1. CONFIGURAÇÃO DE RECONHECIMENTO DE VOZ ---
+    // --- RECONHECIMENTO DE VOZ ---
     setupRecognition() {
         if ("SpeechRecognition" in window || "webkitSpeechRecognition" in window) {
             const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -61,7 +61,7 @@ class VoiceAssistant {
             this.recognition.onend = () => {
                 if (this.conversationActive && !this.isSpeaking) {
                     try { this.recognition.start(); } catch(e){}
-                } else if (!this.conversationActive) {
+                } else {
                     this.updateStatus("Ocioso", "idle");
                 }
             };
@@ -72,9 +72,8 @@ class VoiceAssistant {
         }
     }
 
-    // --- 2. EVENTOS E BOTÕES ---
+    // --- EVENTOS ---
     bindEvents() {
-        // Chat texto
         this.ui.btnSend.addEventListener("click", () => this.sendMessage());
         this.ui.input.addEventListener("keydown", (e) => { 
             if(e.key==="Enter" && !e.shiftKey) {
@@ -83,37 +82,27 @@ class VoiceAssistant {
             }
         });
 
-        // Conversação por voz
         this.ui.btnStart.addEventListener("click", () => this.startConversation());
         this.ui.btnStop.addEventListener("click", () => this.stopConversation());
         
-        // Upload de Imagem
         this.ui.imgInput.addEventListener("change", (e) => this.handleFileSelect(e, 'image'));
-        
-        // Upload de Vídeo
         this.ui.videoInput.addEventListener("change", (e) => this.handleFileSelect(e, 'video'));
 
-        // Botão Quiz
         this.ui.btnQuiz.addEventListener("click", () => this.triggerQuiz());
 
-        // RAG Upload
         document.getElementById("btnUpload")?.addEventListener("click", () => this.handleDocUpload());
 
-        // Configs de licença e chave Google
         this.ui.keys.license.addEventListener("input", (e) => localStorage.setItem("ia_license_key", e.target.value));
         this.ui.keys.google.addEventListener("input", (e) => localStorage.setItem("ia_google_key", e.target.value));
         
-        // Botão "Ouvir resposta"
         document.getElementById("lerBtn")?.addEventListener("click", () => {
             if(window.ultimaRespostaIA) this.speak(window.ultimaRespostaIA);
         });
 
-        // Salvar / limpar agentes
         document.getElementById("salvarTransformerBtn")?.addEventListener("click", () => this.saveTransformer());
         document.getElementById("limparTransformerBtn")?.addEventListener("click", () => this.clearTransformerForm());
         document.getElementById("limparListaBtn")?.addEventListener("click", () => this.clearTransformerList());
         
-        // Helper Global para limpar mídia (chamado pelo botão X no HTML)
         window.limparMedia = () => {
             this.currentMedia = { data: null, mimeType: null, type: null };
             if (this.ui.mediaPreview) this.ui.mediaPreview.style.display = "none";
@@ -122,37 +111,28 @@ class VoiceAssistant {
         };
     }
 
-    // --- 3. CONTROLE DA CONVERSA POR VOZ ---
+    // --- CONVERSAÇÃO POR VOZ ---
     startConversation() {
         if (!this.validateLicense()) return;
         this.conversationActive = true;
         this.updateUIState();
         this.updateStatus("Ouvindo...", "listening");
-        try {
-            this.recognition && this.recognition.start();
-        } catch (e) {
-            console.error(e);
-        }
+        try { this.recognition.start(); } catch (e) {}
     }
 
     stopConversation() {
         this.conversationActive = false;
         this.updateUIState();
         this.updateStatus("Pronto", "idle");
-        try {
-            this.recognition && this.recognition.stop();
-        } catch (e) {
-            console.error(e);
-        }
+        try { this.recognition.stop(); } catch (e) {}
         this.stopAudio();
     }
 
-    // --- 4. MANIPULAÇÃO DE MÍDIA (FOTO/VÍDEO) ---
+    // --- MÍDIA ---
     handleFileSelect(event, type) {
         const file = event.target.files[0];
         if (!file) return;
 
-        // Limite ~4MB por causa da Vercel (body de função serverless)
         if (file.size > 4 * 1024 * 1024) {
             alert("⚠️ Arquivo muito grande! Use mídias até 4MB.");
             event.target.value = "";
@@ -166,21 +146,19 @@ class VoiceAssistant {
                 mimeType: file.type,
                 type: type
             };
-            if (this.ui.mediaPreview) {
-                this.ui.mediaPreview.style.display = "block";
-                this.ui.mediaName.textContent = `${type === 'video' ? '🎥' : '📷'} ${file.name} anexado`;
-            }
+            this.ui.mediaPreview.style.display = "block";
+            this.ui.mediaName.textContent = `${type === 'video' ? '🎥' : '📷'} ${file.name} anexado`;
         };
         reader.readAsDataURL(file);
     }
 
-    // --- 5. QUIZ / PROVA ---
+    // --- QUIZ ---
     triggerQuiz() {
         if (!this.validateLicense()) return;
         
         this.stopAudio();
         
-        const promptQuiz = "Crie uma prova técnica com 3 perguntas de múltipla escolha baseadas no conhecimento que você tem agora (PDFs carregados ou contexto da conversa). No final, mostre o gabarito.";
+        const promptQuiz = "Crie uma prova técnica com 3 perguntas de múltipla escolha e um gabarito no final.";
         
         this.addMessage("user", "📝 <strong>Solicitação de Prova:</strong><br>" + promptQuiz);
         this.ui.input.value = "";
@@ -189,22 +167,21 @@ class VoiceAssistant {
         this.sendPayload(promptQuiz);
     }
 
-    // --- 6. ENVIO DE MENSAGEM ---
+    // --- ENVIO DE MENSAGEM ---
     async sendMessage() {
         const text = this.ui.input.value.trim();
-        // Permite enviar só imagem/vídeo, mesmo sem texto
+
         if (!text && !this.currentMedia.data) return;
         if (!this.validateLicense()) return;
 
         this.stopAudio();
         
-        // Mostrar mensagem do usuário (com preview de mídia)
         let userDisplay = text;
         if (this.currentMedia.data) {
             if (this.currentMedia.type === 'image') {
                 userDisplay += `<br><img src="${this.currentMedia.data}" style="max-width:150px; border-radius:8px; margin-top:5px;">`;
             } else {
-                userDisplay += `<br>🎥 [Vídeo Enviado para Análise]`;
+                userDisplay += `<br>🎥 [Vídeo anexado]`;
             }
         }
         this.addMessage("user", userDisplay);
@@ -215,7 +192,7 @@ class VoiceAssistant {
         this.sendPayload(text);
     }
 
-    // Função central de envio para /api/chat
+    // --- FUNÇÃO CENTRAL DE ENVIO ---
     async sendPayload(text) {
         const messages = this.getHistory();
         const profile = document.getElementById("perfil")?.value || "";
@@ -225,18 +202,20 @@ class VoiceAssistant {
         try {
             const resp = await fetch("/api/chat", {
                 method: "POST",
-                headers: { "Content-Type": "application/json", ...this.getAuthHeaders() },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...this.getAuthHeaders()
+                },
                 body: JSON.stringify({
                     messages,
                     profile,
                     useRag,
                     name,
-                    mediaData: this.currentMedia.data, // Envia a mídia (base64)
+                    mediaData: this.currentMedia.data,
                     mediaType: this.currentMedia.mimeType
                 }),
             });
 
-            // Limpa mídia depois de enviada
             window.limparMedia();
 
             const data = await resp.json();
@@ -256,54 +235,40 @@ class VoiceAssistant {
         }
     }
 
-    // --- 7. VOZ (TTS) ---
+    // --- VOZ (NAVEGADOR — SEM TTS DO BACKEND) ---
     async speak(text) {
         if (!text) return;
+
         this.isSpeaking = true;
         this.updateStatus("Falando...", "speaking");
-        try { this.recognition && this.recognition.stop(); } catch(e) {}
+        try { this.recognition?.stop(); } catch(e) {}
 
-        const voice = document.getElementById("vozSelect")?.value || "alloy";
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "pt-BR";
 
-        try {
-            const resp = await fetch("/api/tts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...this.getAuthHeaders() },
-                body: JSON.stringify({ text, voice })
-            });
+        utterance.pitch = 1;
+        utterance.rate = 1;
 
-            if (!resp.ok) throw new Error("Erro TTS");
-            
-            const blob = await resp.blob();
-            const url = URL.createObjectURL(blob);
-            
-            this.audioPlayer = new Audio(url);
-            this.audioPlayer.onended = () => {
-                this.isSpeaking = false;
-                this.updateStatus("Ouvindo...", "listening");
-                if (this.conversationActive) {
-                    try { this.recognition && this.recognition.start(); } catch(e){}
-                }
-            };
-            await this.audioPlayer.play();
-        } catch (e) {
-            console.error(e);
+        utterance.onend = () => {
             this.isSpeaking = false;
-            this.updateStatus("Erro Voz", "idle");
-        }
+            if (this.conversationActive) {
+                this.updateStatus("Ouvindo...", "listening");
+                try { this.recognition?.start(); } catch(e){}
+            } else {
+                this.updateStatus("Pronto", "idle");
+            }
+        };
+
+        speechSynthesis.speak(utterance);
     }
 
     stopAudio() {
-        if (this.audioPlayer) {
-            this.audioPlayer.pause();
-            this.audioPlayer.currentTime = 0;
-            this.audioPlayer = null;
-        }
+        try { speechSynthesis.cancel(); } catch(e){}
         this.isSpeaking = false;
-        if (this.ui.holoHead) this.ui.holoHead.classList.remove("speaking");
+        this.ui.holoHead.classList.remove("speaking");
     }
 
-    // --- 8. RAG / UPLOAD DE DOCUMENTOS ---
+    // --- UPLOAD PDF/DOCX ---
     async handleDocUpload() {
         const file = document.getElementById("arquivoInput").files[0];
         if (!file) return alert("Selecione um PDF/DOCX.");
@@ -342,7 +307,7 @@ class VoiceAssistant {
         }
     }
 
-    // --- 9. CONFIGURAÇÕES E LICENÇA ---
+    // --- LICENÇA ---
     loadSettings() {
         this.ui.keys.license.value = localStorage.getItem("ia_license_key") || "";
         this.ui.keys.google.value = localStorage.getItem("ia_google_key") || "";
@@ -365,20 +330,18 @@ class VoiceAssistant {
     }
 
     updateStatus(text, state) {
-        if (this.ui.statusText) this.ui.statusText.textContent = text;
-        if (state === "speaking") {
-            this.ui.holoHead?.classList.add("speaking");
-        } else {
-            this.ui.holoHead?.classList.remove("speaking");
-        }
+        this.ui.statusText.textContent = text;
+        state === "speaking"
+            ? this.ui.holoHead.classList.add("speaking")
+            : this.ui.holoHead.classList.remove("speaking");
     }
 
     updateUIState() {
-        if (this.ui.btnStart) this.ui.btnStart.disabled = this.conversationActive;
-        if (this.ui.btnStop) this.ui.btnStop.disabled = !this.conversationActive;
+        this.ui.btnStart.disabled = this.conversationActive;
+        this.ui.btnStop.disabled = !this.conversationActive;
     }
 
-    // --- 10. MENSAGENS E HISTÓRICO ---
+    // --- HISTÓRICO ---
     addMessage(role, text) {
         const div = document.createElement("div");
         div.classList.add("msg", role === "user" ? "usuario" : "ia");
@@ -388,8 +351,6 @@ class VoiceAssistant {
     }
 
     getHistory() {
-        // IMPORTANTE: aqui mandamos "assistant" para as mensagens da IA
-        // para o /api/chat.js conseguir converter para "model"
         return Array.from(this.ui.mensagens.children).map(div => ({
             role: div.classList.contains("usuario") ? "user" : "assistant",
             content: div.innerText.replace(/^(Você|IA)\s/, "")
@@ -409,7 +370,7 @@ class VoiceAssistant {
         }
     }
 
-    // --- 11. AGENTES SALVOS (TRANSFORMERS) ---
+    // --- AGENTES SALVOS ---
     loadTransformers() {
         try {
             const raw = localStorage.getItem("ia_transformers_lista");
@@ -447,19 +408,14 @@ class VoiceAssistant {
     }
 
     clearTransformerForm() {
-        const nomeEl = document.getElementById("transformerNome");
-        const perfilEl = document.getElementById("perfil");
-        const vozEl = document.getElementById("vozSelect");
-
-        if (nomeEl) nomeEl.value = "";
-        if (perfilEl) perfilEl.value = "";
-        if (vozEl) vozEl.value = "shimmer";
-
+        document.getElementById("transformerNome").value = "";
+        document.getElementById("perfil").value = "";
+        document.getElementById("vozSelect").value = "shimmer";
         this.updateStatus("Configuração limpa.", "idle");
     }
 
     clearTransformerList() {
-        if (!confirm("Tem certeza que deseja apagar todos os agentes salvos?")) return;
+        if (!confirm("Tem certeza?")) return;
         window.transformersSalvos = [];
         localStorage.removeItem("ia_transformers_lista");
         this.renderTransformers();
@@ -475,12 +431,9 @@ class VoiceAssistant {
             div.className = "transformer-item";
             div.innerHTML = `<span class="transformer-name">${t.nome}</span>`;
             div.onclick = () => {
-                const nomeEl = document.getElementById("transformerNome");
-                const perfilEl = document.getElementById("perfil");
-                const vozEl = document.getElementById("vozSelect");
-                if (nomeEl) nomeEl.value = t.nome;
-                if (perfilEl) perfilEl.value = t.perfil;
-                if (vozEl) vozEl.value = t.voz || "alloy";
+                document.getElementById("transformerNome").value = t.nome;
+                document.getElementById("perfil").value = t.perfil;
+                document.getElementById("vozSelect").value = t.voz || "alloy";
                 this.updateStatus("Agente carregado.", "idle");
             };
             lista.appendChild(div);
@@ -488,10 +441,8 @@ class VoiceAssistant {
     }
 }
 
-// Inicializa
 window.addEventListener('DOMContentLoaded', () => { 
     window.assistant = new VoiceAssistant(); 
 });
 
-// Array global com agentes salvos
-window.transformersSalvos = []; 
+window.transformersSalvos = [];  
