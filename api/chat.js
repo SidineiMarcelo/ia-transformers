@@ -17,9 +17,9 @@ export default async function handler(req, res) {
         .json({ error: "Configuração do servidor inválida (sem API key)." });
     }
 
-    const modelId = "gemini-2.5-flash"; // modelo principal de texto/voz-imagem  
+    const modelId = "gemini-1.5-pro-latest"; // modelo principal de texto/voz-imagem  
 
-    // Monta o system_instruction (perfil do agente)
+    // Monta o system_instruction (perfil do agente)  
     const systemText =
       (profile && profile.trim()) ||
       "Você é um assistente útil, gentil, que responde em português claro e objetivo.";
