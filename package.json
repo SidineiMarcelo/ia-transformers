@@ -1,14 +1,13 @@
 {
-  "name": "ia-transformers-rag",
-  "version": "1.0.0",
-  "description": "IA com RAG usando Supabase e OpenAI",
+  "name": "ia-transformers-gemini",
+  "version": "2.0.0",
+  "description": "IA Enterprise com Google Gemini, RAG e Visão Computacional",
   "main": "api/index.js",
   "type": "module",
   "scripts": {
     "start": "node api/index.js"
   },
   "dependencies": {
-    "openai": "^4.28.0",
     "dotenv": "^16.4.5",
     "@supabase/supabase-js": "^2.39.0",
     "pdf-parse": "^1.1.1",

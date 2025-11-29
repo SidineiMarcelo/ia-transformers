@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
-import pdf from 'pdf-parse';
+import pdf from 'pdf-parse/lib/pdf-parse.js';
 import mammoth from 'mammoth';
 import Busboy from 'busboy';
 
@@ -8,9 +7,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY; 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export const config = {
-  api: { bodyParser: false },
-};
+export const config = { api: { bodyParser: false } };
 
 export default async function handler(req, res) {
   // CORS
@@ -21,128 +18,113 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { return res.status(405).json({ error: 'Method not allowed' }); }
 
-  // Envolvemos tudo numa Promise para a Vercel não matar o processo antes da hora
   return new Promise((resolve) => {
     try {
-        // 1. VERIFICAÇÕES DE SEGURANÇA
+        // 1. Validação de Licença
         const licenseKey = req.headers['x-license-key'];
-        if (!licenseKey) {
-            res.status(403).json({ error: 'Licença não fornecida.' });
-            return resolve();
-        }
+        if (!licenseKey) { res.status(403).json({ error: 'Licença ausente.' }); return resolve(); }
 
-        // Validação Assíncrona inicial
         (async () => {
             const { data: licenseData } = await supabase
                 .from('licenses').select('active').eq('key', licenseKey).single();
 
             if (!licenseData?.active) {
-                res.status(403).json({ error: 'Licença inválida ou bloqueada.' });
+                res.status(403).json({ error: 'Licença bloqueada.' });
                 return resolve();
             }
 
-            const userApiKey = req.headers['x-openai-key'];
-            const apiKeyToUse = userApiKey && userApiKey.length > 10 ? userApiKey : process.env.OPENAI_API_KEY;
+            // 2. Chave Google (Gemini) - BYOK ou Sistema
+            const userApiKey = req.headers['x-google-key'];
+            const apiKey = userApiKey && userApiKey.length > 10 ? userApiKey : process.env.GEMINI_API_KEY;
             
-            if (!apiKeyToUse) {
-                res.status(500).json({ error: 'Falta Chave OpenAI.' });
+            if (!apiKey) {
+                res.status(500).json({ error: 'Falta Chave Gemini API nas configurações.' });
                 return resolve();
             }
 
-            const openai = new OpenAI({ apiKey: apiKeyToUse });
-
-            // 2. PROCESSAMENTO DO ARQUIVO (BUSBOY)
+            // 3. Processamento de Arquivo
             const busboy = Busboy({ headers: req.headers });
             let fileBuffer = null;
             let fileName = '';
             let fileType = '';
 
             busboy.on('file', (name, file, info) => {
-                const { filename, mimeType } = info;
-                fileName = filename;
-                fileType = mimeType;
+                fileName = info.filename;
+                fileType = info.mimeType;
                 const chunks = [];
-                file.on('data', (data) => chunks.push(data));
+                file.on('data', (d) => chunks.push(d));
                 file.on('end', () => fileBuffer = Buffer.concat(chunks));
             });
 
             busboy.on('finish', async () => {
-                if (!fileBuffer) {
-                    res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-                    return resolve();
-                }
+                if (!fileBuffer) { res.status(400).json({ error: 'Arquivo vazio.' }); return resolve(); }
 
                 try {
-                    let textContent = '';
-                    // Leitura segura do PDF/DOCX
+                    let text = '';
+                    // Extração de texto
                     if (fileType === 'application/pdf') {
                         const data = await pdf(fileBuffer);
-                        textContent = data.text;
+                        text = data.text;
                     } else if (fileType.includes('wordprocessingml') || fileName.endsWith('.docx')) {
-                        const result = await mammoth.extractRawText({ buffer: fileBuffer });
-                        textContent = result.value;
+                        const res = await mammoth.extractRawText({ buffer: fileBuffer });
+                        text = res.value;
                     } else {
-                        res.status(400).json({ error: 'Formato inválido. Use PDF ou DOCX.' });
+                        res.status(400).json({ error: 'Use PDF ou DOCX.' });
                         return resolve();
                     }
 
-                    textContent = textContent.replace(/\s+/g, ' ').trim();
-                    if (textContent.length < 50) {
-                        res.status(400).json({ error: 'Arquivo vazio ou ilegível.' });
-                        return resolve();
-                    }
+                    // Limpeza
+                    text = text.replace(/\s+/g, ' ').trim();
+                    if (text.length < 50) { res.status(400).json({ error: 'Pouco texto legível.' }); return resolve(); }
 
-                    // Chunking (500 chars + 100 overlap)
-                    const chunkSize = 500;
-                    const chunkOverlap = 100;
+                    // Chunking Otimizado para Gemini (1000 chars)
+                    const chunkSize = 1000;
+                    const chunkOverlap = 200;
                     const chunks = [];
-                    for (let i = 0; i < textContent.length; i += (chunkSize - chunkOverlap)) {
-                        const chunk = textContent.slice(i, i + chunkSize);
-                        chunks.push(chunk);
-                        if (i + chunkSize >= textContent.length) break;
+                    for (let i = 0; i < text.length; i += (chunkSize - chunkOverlap)) {
+                        chunks.push(text.slice(i, i + chunkSize));
+                        if (i + chunkSize >= text.length) break;
                     }
 
-                    // Vetorização e Salvamento
+                    // 4. Vetorização com Google (text-embedding-004)
                     for (const chunk of chunks) {
-                        try {
-                            const embeddingResponse = await openai.embeddings.create({
-                                model: 'text-embedding-3-small',
-                                input: chunk,
-                            });
-                            const embedding = embeddingResponse.data[0].embedding;
+                        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                model: "models/text-embedding-004",
+                                content: { parts: [{ text: chunk }] }
+                            })
+                        });
 
-                            await supabase.from('documents').insert({
-                                content: chunk,
-                                metadata: { fileName },
-                                embedding: embedding,
-                            });
-                        } catch (openaiError) {
-                            console.error("Erro OpenAI:", openaiError);
-                            res.status(401).json({ error: 'Erro OpenAI: Verifique saldo/chave.' });
-                            return resolve();
+                        if (!response.ok) {
+                            const err = await response.json();
+                            throw new Error(err.error?.message || "Erro Google Embeddings");
                         }
+
+                        const data = await response.json();
+                        // O Google retorna 'values' dentro de 'embedding'
+                        const embedding = data.embedding.values; 
+
+                        // Salva no Supabase (que agora aceita vetores de 768)
+                        await supabase.from('documents').insert({
+                            content: chunk,
+                            metadata: { fileName },
+                            embedding: embedding,
+                        });
                     }
                     
-                    res.status(200).json({ success: true, message: 'Processado com sucesso!' });
+                    res.status(200).json({ success: true, message: 'Memória criada com Google Gemini!' });
                     return resolve();
 
-                } catch (error) {
-                    console.error("Erro Processamento:", error);
-                    res.status(500).json({ error: 'Erro interno: ' + error.message });
-                    return resolve();
+                } catch (err) {
+                    console.error(err);
+                    res.status(500).json({ error: 'Erro interno: ' + err.message });
+                    return resolve(); 
                 }
             });
-
             req.pipe(busboy);
-        })().catch(err => {
-            console.error("Erro Geral:", err);
-            res.status(500).json({ error: "Erro crítico no servidor." });
-            resolve();
-        });
-
-    } catch (e) {
-        res.status(500).json({ error: "Erro de inicialização." });
-        resolve();
-    }
+        })().catch(e => { res.status(500).json({ error: e.message }); resolve(); });
+    } catch (e) { res.status(500).json({ error: "Erro de inicialização." }); resolve(); }
   });
-}      
+} 

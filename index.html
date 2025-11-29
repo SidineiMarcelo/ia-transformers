@@ -2,167 +2,120 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <title>IA Transformers</title>
-    <!-- ESSENCIAL PARA CELULAR FICAR RESPONSIVO -->
+    <title>IA Transformers (Gemini)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <div class="app">
       <header class="app-header">
-        <h1>IA Transformers</h1>
-        <p class="app-subtitle">
-          Crie, salve e ative diferentes personalidades de IA.
-        </p>
+        <h1>IA Transformers <span style="font-size:0.5em; color:#4285F4">Gemini</span></h1>
+        <p class="app-subtitle">Inteligência Multimodal para Empresas</p>
       </header>
 
       <main class="layout">
-        <!-- LADO ESQUERDO: lista de Transformers -->
+        <!-- ESQUERDA -->
         <aside class="col col-left">
-          <h2>Transformers salvos</h2>
+          <h2>Agentes Salvos</h2>
           <div id="listaTransformers" class="lista-transformers"></div>
-          <button id="limparListaBtn" class="btn secundario full">
-            Limpar lista
-          </button>
+          <button id="limparListaBtn" class="btn secundario full">Limpar Lista</button>
         </aside>
 
-        <!-- CENTRO: holograma + chat -->
+        <!-- CENTRO -->
         <section class="col col-center">
           <div class="holo-card">
-            <div id="holo-head" class="holo-head">
-              <div class="holo-face"></div>
-            </div>
+            <div id="holo-head" class="holo-head"><div class="holo-face"></div></div>
             <div class="holo-info">
-              <h2 id="holo-nome">Transformer ativo</h2>
-              <p id="holo-status-text" class="holo-status">Ocioso</p>
+              <h2 id="holo-nome">Agente Ativo</h2>
+              <p id="holo-status-text" class="holo-status">Aguardando...</p>
             </div>
           </div>
 
-          <div class="status-bar" id="status">
-            Pronto (aguardando sua mensagem)
-          </div>
-
+          <div class="status-bar" id="status">Pronto.</div>
           <div id="mensagens" class="mensagens"></div>
 
+          <!-- ÁREA DE INPUT MULTIMODAL -->
           <div class="entrada-container">
-            <textarea
-              id="entradaTexto"
-              placeholder="Digite sua mensagem aqui..."
-            ></textarea>
+            <!-- Preview de Mídia -->
+            <div id="mediaPreview" style="display:none; padding:8px; background:rgba(0,0,0,0.4); border-radius:6px; margin-bottom:8px; border:1px solid #4285F4;">
+                <span id="mediaName" style="font-size:0.8rem; color:#00f2ff;">Mídia anexada</span>
+                <button onclick="limparMedia()" style="float:right; background:none; border:none; color:#ff5252; cursor:pointer; font-weight:bold;">REMOVER X</button>
+            </div>
+
+            <textarea id="entradaTexto" placeholder="Digite, envie foto/vídeo ou peça uma prova..."></textarea>
             
             <div class="botoes-chat">
-              <button id="enviarBtn" class="btn primario">Enviar</button>
-              <button id="iniciarConversaBtn" class="btn secundario">
-                🎤 Iniciar Conversa
-              </button>
-              <button id="pararConversaBtn" class="btn perigo" disabled>
-                🛑 Parar
-              </button>
-              <button id="lerBtn" class="btn secundario">
-                🔊 Ouvir resposta
-              </button>
+                <!-- Botão Foto -->
+                <label for="chatImageInput" class="btn secundario" title="Anexar Imagem" style="width:auto; min-width:40px; text-align:center; cursor:pointer;">📷</label>
+                <input type="file" id="chatImageInput" accept="image/*" style="display:none;">
+
+                <!-- Botão Vídeo (NOVO) -->
+                <label for="chatVideoInput" class="btn secundario" title="Anexar Vídeo (Max 4MB)" style="width:auto; min-width:40px; text-align:center; cursor:pointer;">🎥</label>
+                <input type="file" id="chatVideoInput" accept="video/mp4,video/webm" style="display:none;">
+
+                <button id="enviarBtn" class="btn primario">Enviar</button>
+                <button id="iniciarConversaBtn" class="btn secundario">🎤</button>
+                <button id="pararConversaBtn" class="btn perigo" disabled>🛑</button>
+                
+                <!-- Botão QUIZ (NOVO) -->
+                <button id="btnQuiz" class="btn secundario" style="border-color: #ffd700; color: #ffd700;" title="Gerar Prova">📝 Quiz</button>
             </div>
           </div>
         </section>
 
-        <!-- DIREITA: configuração do Transformer -->
+        <!-- DIREITA -->
         <aside class="col col-right">
-          <h2>Configurações de Acesso</h2>
-
-          <!-- ÁREA DE CONTROLE DE ACESSO E CUSTO -->
-          <div style="background: rgba(0,242,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(0,242,255,0.2); margin-bottom: 12px;">
+          <h2>Acesso & Segurança</h2>
+          <div style="background: rgba(66, 133, 244, 0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(66, 133, 244, 0.3); margin-bottom: 12px;">
+            <label class="campo-label" style="color: #ffeb3b;">🔑 Licença de Uso</label>
+            <input id="licenseKeyInput" type="password" class="campo-input" placeholder="Sua licença..." />
             
-            <!-- 1. LICENÇA (SEU CONTROLE) -->
-            <label class="campo-label" style="color: #ffeb3b;">🔑 Chave de Licença (Obrigatório)</label>
-            <input
-              id="licenseKeyInput"
-              type="password"
-              class="campo-input"
-              placeholder="Digite sua licença..."
-              style="border-color: #ffeb3b; margin-bottom: 8px;"
-            />
-
-            <!-- 2. OPENAI (CUSTO DO CLIENTE) -->
-            <label class="campo-label" style="color: #00ff88;">🤖 Chave OpenAI (Cliente)</label>
-            <input
-              id="userApiKey"
-              type="password"
-              class="campo-input"
-              placeholder="sk-..."
-              style="border-color: #00ff88;"
-            />
-            <small style="color: #a9b4ff; font-size: 0.65rem; display: block; margin-top: 4px;">
-              A chave OpenAI é usada para processar as mensagens. A Licença libera seu acesso ao app.
-            </small>
+            <label class="campo-label" style="color: #4285F4; margin-top:8px;">💎 Chave Google Gemini</label>
+            <input id="userApiKey" type="password" class="campo-input" placeholder="AIza..." style="border-color: #4285F4;" />
           </div>
 
-          <h2>Configuração do Agente</h2>
-          <label class="campo-label" for="transformerNome">Nome</label>
-          <input
-            id="transformerNome"
-            type="text"
-            class="campo-input"
-            placeholder="Ex.: Supa base teste"
-          />
+          <h2>Configuração</h2>
+          <label class="campo-label">Nome do Agente</label>
+          <input id="transformerNome" type="text" class="campo-input" placeholder="Ex: Instrutor" />
 
-          <label class="campo-label" for="vozSelect">Voz da IA</label>
-          
-          <!-- AQUI ESTÃO TODAS AS 6 VOZES DISPONÍVEIS -->
+          <label class="campo-label">Voz</label>
           <select id="vozSelect" class="campo-input">
-            <option value="alloy">Alloy (Neutra / Feminina - Padrão)</option>
-            <option value="echo">Echo (Masculina - Suave e equilibrada)</option>
-            <option value="fable">Fable (Masculina - Sotaque britânico leve)</option>
-            <option value="onyx">Onyx (Masculina - Grave e profunda)</option>
-            <option value="nova">Nova (Feminina - Energética e casual)</option>
-            <option value="shimmer">Shimmer (Feminina - Clara e confiante)</option>
+            <option value="shimmer">Kore (Feminina Clara)</option>
+            <option value="nova">Aoede (Feminina Energética)</option>
+            <option value="onyx">Charon (Masculina Grave)</option>
+            <option value="echo">Fenrir (Masculina Forte)</option>
+            <option value="alloy">Puck (Neutra)</option>
           </select>
 
-          <label class="campo-label" for="perfil">Perfil do agente</label>
-          <textarea
-            id="perfil"
-            class="campo-textarea"
-            placeholder="Descreva como este Transformer deve se comportar..."
-          ></textarea>
+          <label class="campo-label">Diretrizes</label>
+          <textarea id="perfil" class="campo-textarea" placeholder="Como este agente deve agir?"></textarea>
 
           <div class="botoes-perfil">
-            <button id="aplicarPerfilBtn" class="btn secundario full">
-              Aplicar perfil ao Transformer ativo
-            </button>
+            <button id="aplicarPerfilBtn" class="btn secundario full">Aplicar</button>
           </div>
 
-          <!-- MÓDULO RAG -->
           <div class="rag-container">
-            <span class="rag-label">📂 Base de Conhecimento (RAG)</span>
-            
+            <span class="rag-label">📂 Treinamento (PDF/DOCX)</span>
             <div class="custom-file-upload">
-              <label for="arquivoInput" class="btn secundario small">📁 Escolher</label>
-              <div id="fileNameDisplay" class="file-name-box">Nenhum arquivo selecionado</div>
+              <label for="arquivoInput" class="btn secundario small">📁 Carregar Material</label>
+              <div id="fileNameDisplay" class="file-name-box">Nenhum</div>
               <input type="file" id="arquivoInput" accept=".pdf,.docx" style="display: none;" />
             </div>
-            
-            <button id="btnUpload" class="btn primario full" style="margin-top: 8px;">
-              Carregar Documento
-            </button>
+            <button id="btnUpload" class="btn primario full" style="margin-top: 8px;">Processar Conhecimento</button>
             <div id="uploadStatus" class="upload-status"></div>
-
             <label class="rag-toggle">
               <input type="checkbox" id="checkRag" class="rag-checkbox" />
-              <span class="rag-checkbox-label">Consultar Base de Conhecimento</span>
+              <span class="rag-checkbox-label">Usar Base de Conhecimento</span>
             </label>
           </div>
 
           <div class="botoes-transformer">
-            <button id="salvarTransformerBtn" class="btn primario full">
-              💾 Salvar Transformer
-            </button>
-            <button id="limparTransformerBtn" class="btn perigo full">
-              Limpar perfil
-            </button>
+            <button id="salvarTransformerBtn" class="btn primario full">💾 Salvar</button>
+            <button id="limparTransformerBtn" class="btn perigo full">Limpar</button>
           </div>
         </aside>
       </main>
     </div>
-
     <script src="script.js"></script>
   </body>
 </html>  

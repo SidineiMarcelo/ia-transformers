@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -7,89 +6,113 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default async function handler(req, res) {
   // CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader('Access-Control-Allow-Headers', '*'); 
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-  if (req.method !== 'POST') { return res.status(405).json({ error: 'Method not allowed' }); }
 
-  // 1. SEGURANÇA (Licença)
+  // 1. Segurança e Chaves
   const licenseKey = req.headers['x-license-key'];
-  if (!licenseKey) return res.status(403).json({ error: 'Licença não fornecida.' });
+  if (!licenseKey) return res.status(403).json({ error: 'Licença ausente.' });
 
-  const { data: licenseData, error: licenseError } = await supabase
-      .from('licenses').select('active').eq('key', licenseKey).single();
+  const { data: license } = await supabase.from('licenses').select('active').eq('key', licenseKey).single();
+  if (!license?.active) return res.status(403).json({ error: 'Licença bloqueada.' });
 
-  if (licenseError || !licenseData || !licenseData.active) {
-      return res.status(403).json({ error: 'ACESSO BLOQUEADO: Licença inválida.' });
-  }
+  const userApiKey = req.headers['x-google-key'];
+  // Usa chave do cliente ou a do sistema
+  const apiKey = userApiKey && userApiKey.length > 10 ? userApiKey : process.env.GEMINI_API_KEY;
+  
+  if (!apiKey) return res.status(500).json({ error: 'Falta Chave Google Gemini.' });
 
-  // 2. OPENAI (Chave)
-  const userApiKey = req.headers['x-openai-key'];
-  const apiKeyToUse = userApiKey && userApiKey.length > 10 ? userApiKey : process.env.OPENAI_API_KEY;
-  if (!apiKeyToUse) return res.status(500).json({ error: 'Falta chave OpenAI.' });
-
-  const openai = new OpenAI({ apiKey: apiKeyToUse });
-
-  // 3. CÉREBRO DA IA (CHAT)
-  // Se este arquivo tiver "const { text } = req.body", ESTÁ ERRADO. O certo é "messages".
-  const { messages, profile, useRag, name } = req.body; 
+  const { messages, profile, useRag, name, mediaData, mediaType } = req.body; 
 
   try {
-    const nomeDaIA = name || "Assistente";
+    const nomeIA = name || "Assistente Transformers";
     
-    let systemPrompt = `
-    INSTRUÇÕES DE IDENTIDADE:
-    Seu nome é EXATAMENTE "${nomeDaIA}".
-    Nunca diga que é "uma IA criada pela OpenAI". Se perguntarem quem você é, responda: "Sou ${nomeDaIA}".
-    
-    PERFIL DE COMPORTAMENTO:
-    ${profile}
+    // Instrução de Sistema (Persona + Modo Professor)
+    let systemInstruction = `
+    IDENTIDADE: Você é "${nomeIA}", uma IA de Treinamento Corporativo Avançado.
+    PERFIL: ${profile}.
+    CAPACIDADE: Analise textos, imagens e vídeos técnicos com precisão.
+    TAREFA EXTRA (QUIZ): Se o usuário pedir um "Quiz", "Prova" ou "Teste", gere 3 perguntas de múltipla escolha difíceis baseadas no conhecimento que você tem. No final, mostre o gabarito.
     `;
-    
-    // Lógica RAG
+
+    // 2. RAG (Busca Documental com Embeddings Google)
     if (useRag) {
-      const lastUserMessage = messages[messages.length - 1].content;
-      
-      let queryEmbedding;
-      try {
-        const embeddingResponse = await openai.embeddings.create({
-          model: 'text-embedding-3-small',
-          input: lastUserMessage,
+        const lastMsg = messages[messages.length - 1].content;
+        
+        // Gerar vetor da pergunta
+        const embRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ model: "models/text-embedding-004", content: { parts: [{ text: lastMsg }] } })
         });
-        queryEmbedding = embeddingResponse.data[0].embedding;
-      } catch (embError) {
-        return res.status(401).json({ error: 'Erro OpenAI API Key.' });
-      }
+        const embData = await embRes.json();
+        
+        if (embData.embedding) {
+            const { data: docs } = await supabase.rpc('match_documents', {
+                query_embedding: embData.embedding.values,
+                match_threshold: 0.3, 
+                match_count: 6
+            });
 
-      const { data: documents, error: supabaseError } = await supabase.rpc('match_documents', {
-        query_embedding: queryEmbedding,
-        match_threshold: 0.2, 
-        match_count: 10       
-      });
-
-      if (supabaseError) return res.status(500).json({ error: 'Erro Banco de Dados.' });
-
-      if (documents && documents.length > 0) {
-        const contextText = documents.map(doc => doc.content).join('\n---\n');
-        systemPrompt += `\nINSTRUÇÃO RAG: Use APENAS este contexto:\n${contextText}`;
-      } else {
-        systemPrompt += `\n(Aviso: Nada encontrado nos documentos)`;
-      }
+            if (docs && docs.length > 0) {
+                const ctx = docs.map(d => d.content).join('\n---\n');
+                systemInstruction += `\n\nBASE DE CONHECIMENTO (PRIORITÁRIA):\nUse estes dados para responder:\n${ctx}`;
+            }
+        }
     }
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o", // Modelo Inteligente
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
-      temperature: 0.6,
+    // 3. Montagem do Prompt Multimodal para o Gemini
+    const contents = messages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+    }));
+
+    // Se tiver Mídia (Vídeo ou Imagem), anexa na última mensagem
+    if (mediaData && mediaType) {
+        const base64Clean = mediaData.split(',')[1] || mediaData;
+        const lastMsgIndex = contents.length - 1;
+        
+        // Adiciona a imagem/vídeo ao payload
+        contents[lastMsgIndex].parts.push({
+            inline_data: {
+                mime_type: mediaType, 
+                data: base64Clean
+            }
+        });
+        systemInstruction += `\n\n[SISTEMA]: O usuário anexou um arquivo visual (${mediaType}). Analise-o detalhadamente.`;
+    }
+
+    // 4. Chamada à API do Gemini (Flash 1.5 - Rápido e Multimodal)
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: contents,
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            generationConfig: {
+                temperature: 0.4,
+                maxOutputTokens: 2048,
+            }
+        })
     });
 
-    res.status(200).json({ reply: completion.choices[0].message.content });
+    if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || "Erro na API Gemini");
+    }
+
+    const result = await response.json();
+    const reply = result.candidates?.[0]?.content?.parts?.[0]?.text || "Não consegui processar a resposta.";
+
+    res.status(200).json({ reply });
 
   } catch (error) {
-    if (error.status === 401) return res.status(401).json({ error: 'Chave OpenAI Inválida.' });
-    res.status(500).json({ error: 'Erro interno: ' + error.message });
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 }   
