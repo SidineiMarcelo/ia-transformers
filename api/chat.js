@@ -83,7 +83,7 @@ export default async function handler(req, res) {
 
     // 4. Chamada à API do Gemini (CORREÇÃO DE MODELO)
     // O nome 'gemini-1.5-flash-latest' é o mais estável para evitar o erro "not found"
-    const modelVersion = "gemini-1.5-flash-latest"; 
+    const modelVersion = "gemini-2.5-flash"; 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelVersion}:generateContent?key=${apiKey}`;
     
     const response = await fetch(geminiUrl, {
