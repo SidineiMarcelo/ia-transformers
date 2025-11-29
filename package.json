@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "IA com RAG usando Supabase e OpenAI",
   "main": "api/index.js",
+  "type": "module",
   "scripts": {
     "start": "node api/index.js"
   },
