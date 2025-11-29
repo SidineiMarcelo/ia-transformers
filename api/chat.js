@@ -1,5 +1,5 @@
 // /api/chat.js
-// Handler de chat usando Google Gemini 1.5 Pro (API v1beta)
+// Handler de chat usando Google Gemini 2.0 Flash (API v1beta)
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -7,6 +7,7 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Agora já esperamos receber "profile" e "messages" do front-end
     const { profile, messages } = req.body || {};
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -17,12 +18,17 @@ export default async function handler(req, res) {
         .json({ error: "Configuração do servidor inválida (sem API key)." });
     }
 
-    const modelId = "gemini-2.0-flash"; // modelo principal de texto/voz-imagem  
+    // Modelo que você tem disponível no AI Studio
+    const modelId = "gemini-2.0-flash"; // modelo principal de texto/multimodal
 
-    // Monta o system_instruction (perfil do agente)  
+    // Monta o system_instruction (perfil do agente)
+    // Se vier "profile" do front, usamos ele.
+    // Se não vier nada, cai no texto padrão abaixo.
     const systemText =
       (profile && profile.trim()) ||
-      "Você é um assistente útil, gentil, que responde em português claro e objetivo.";
+      "Você é um professor de teologia, gentil e acolhedor, que explica a Bíblia em " +
+      "português simples e fácil de entender. Evite dizer que é uma IA ou modelo de linguagem; " +
+      "fale como um professor humano conversando com o aluno, fazendo perguntas e guiando o estudo.";
 
     const system_instruction = {
       role: "system",
@@ -30,17 +36,15 @@ export default async function handler(req, res) {
     };
 
     // Converte o histórico de mensagens do front-end
-    // mensagens: [{ role: "user" | "assistant", content: string }]
+    // messages: [{ role: "user" | "assistant", content: string }]
     const contents = [];
 
     if (Array.isArray(messages)) {
       for (const m of messages) {
         if (!m || !m.role || !m.content) continue;
 
-        const role =
-          m.role === "assistant"
-            ? "model"
-            : "user"; // Gemini usa 'user' e 'model'
+        // Gemini usa 'user' e 'model' (não 'assistant')
+        const role = m.role === "assistant" ? "model" : "user";
 
         contents.push({
           role,
@@ -53,14 +57,14 @@ export default async function handler(req, res) {
     if (!contents.length) {
       contents.push({
         role: "user",
-        parts: [{ text: "Olá, tudo bem? Responda brevemente." }],
+        parts: [{ text: "Olá! Vamos começar um estudo bíblico." }],
       });
     }
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
     const body = {
-      system_instruction, // ATENÇÃO: underline, não camelCase
+      system_instruction, // ATENÇÃO: underline, é assim mesmo no Gemini
       contents,
       generationConfig: {
         temperature: 0.6,
